@@ -1,0 +1,15 @@
+{
+  "name": "vampire-survivors-clone",
+  "version": "1.0.0",
+  "description": "A clone of Vampire Survivors using Electron and p5.js",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "electron": "^22.0.0"
+  },
+  "author": "",
+  "license": "MIT"
+}

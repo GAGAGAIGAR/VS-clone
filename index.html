@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>STS (仮)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <script src="portrait.js"></script>
+    <script src="character&upgrades.js"></script>
+    <script src="stages.js"></script>
+    <script src="enemies.js"></script>
+    <script src="game.js"></script>
+    <script src="effects.js"></script>
+    <script src="player.js"></script>
+    <script src="ui.js"></script>
+    <style>
+        
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            overflow: hidden;
+        }
+        #title-screen, #options-screen, #pause-screen, #character-select, #resultScreen, #game-over {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            z-index: 10;
+        }
+        #title-screen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            background-color: #444;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .button:hover, .hovered {
+            background-color: #666;
+        }
+        #options-screen, #pause-screen, #character-select, #resultScreen, #game-over {
+            display: none;
+        }
+        #game-canvas {
+            position: absolute;
+            z-index: 2;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #portrait-canvas {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 320px;
+            height: 720px;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="portrait-canvas" width="320" height="720"></canvas>
+    <div id="title-screen">
+        <h1>STS (仮)</h1>
+        <button class="button" onclick="setGameState('characterSelect')">スタート</button>
+        <button class="button" onclick="setGameState('options')">オプション</button>
+    </div>
+    <div id="options-screen">
+        <h2>オプション</h2>
+        <label>効果音: <input type="range" id="sfxVolume"></label><br>
+        <label>BGM音量: <input type="range" id="bgmVolume"></label><br>
+        <button class="button" onclick="setGameState('title')">戻る</button>
+    </div>
+    <div id="pause-screen">
+        <h2>一時停止</h2>
+        <button class="button" onclick="setGameState('playing')">再開</button>
+        <button class="button" onclick="backToTitle()">タイトルへ</button>
+    </div>
+    <div id="character-select"></div>
+    <div id="resultScreen">
+        <h2>結果</h2>
+        <p id="scoreText"></p>
+        <p id="killsText"></p>
+        <p id="timeText"></p>
+        <button class="button" onclick="backToTitle()">タイトルへ</button>
+    </div>
+    <div id="game-over">
+        <h2>ゲームオーバー</h2>
+        <button class="button" onclick="backToTitle()">タイトルへ</button>
+    </div>
+    <script>
+        function setGameState(newState) {
+            console.log(`ゲーム状態を変更: ${newState}`);
+            gameState = newState;
+            document.getElementById('title-screen').style.display = 'none';
+            document.getElementById('options-screen').style.display = 'none';
+            document.getElementById('pause-screen').style.display = 'none';
+            document.getElementById('character-select').style.display = 'none';
+            document.getElementById('resultScreen').style.display = 'none';
+            document.getElementById('game-over').style.display = 'none';
+            if (newState === 'title') {
+                document.getElementById('title-screen').style.display = 'flex';
+            } else if (newState === 'options') {
+                document.getElementById('options-screen').style.display = 'flex';
+            } else if (newState === 'characterSelect') {
+                document.getElementById('character-select').style.display = 'flex';
+            } else if (newState === 'result') {
+                document.getElementById('resultScreen').style.display = 'flex';
+            } else if (newState === 'gameOver') {
+                document.getElementById('game-over').style.display = 'flex';
+            } else if (newState === 'paused') {
+                document.getElementById('pause-screen').style.display = 'flex';
+            }
+            const gameCanvas = document.getElementById('game-canvas');
+            if (gameCanvas) {
+                gameCanvas.style.display = ['title', 'options'].includes(newState) ? 'none' : 'block';
+                gameCanvas.tabIndex = 0;
+                gameCanvas.focus();
+            }
+            updatePortraitCanvas(); // Update portrait when state changes
+        }
+
+        function backToTitle() {
+            setGameState('title');
+            playerStats.hp = playerStats.maxHp || 100;
+            playerStats.exp = 0;
+            playerStats.level = 1;
+            enemies = [];
+            projectiles = [];
+            expItems = [];
+            damagePopups = [];
+            effectCircles = [];
+            poisonSwamps = [];
+            meleeAttacks = [];
+            bits = [];
+            shootingBits = [];
+            gameTime = 0;
+            score = 0;
+            enemiesKilled = 0;
+            rushEnemiesKilled = 0;
+            selectedCharacter = null;
+            previewCharacter = null;
+        }
+
+        // Initialize portrait canvas rendering
+        let portraitCtx = document.getElementById('portrait-canvas').getContext('2d');
+        function updatePortraitCanvas() {
+            // Clear portrait canvas
+            portraitCtx.clearRect(0, 0, 320, 720);
+            // Call drawCharacterPortrait with the 2D context
+            drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats, portraitCtx);
+        }
+
+        // Override p5.js setup to set canvas ID
+        let originalSetup = setup;
+        setup = function() {
+            let canvas = createCanvas(1280, 720);
+            canvas.id('game-canvas');
+            originalSetup();
+        };
+    </script>
+</body>
+</html>
