@@ -195,7 +195,7 @@ window.upgrades = [
         level: 0
     },
     {
-        name: 'ショックフィール',
+        name: 'ショックフィールド',
         effect: (level) => {
             if (level === 0) {
                 playerStats.shockFieldRadius = 100;

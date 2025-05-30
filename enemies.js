@@ -398,67 +398,45 @@ function updateEnemies() {
 
 function drawEnemies() {
     push();
-    // Center viewport on player (1280x720 canvas)
     translate(640 - player.pos.x, 360 - player.pos.y);
 
     for (let enemy of enemies) {
         if (!enemy) continue;
 
-        // Check if enemy is within canvas bounds
-        const canvasX = enemy.pos.x;
-        const canvasY = enemy.pos.y;
-        if (canvasX >= -enemy.size && canvasX <= 1280 + enemy.size && canvasY >= -enemy.size && canvasY <= 720 + enemy.size) {
-            push();
-            translate(enemy.pos.x + (enemy.shakeOffset || 0), enemy.pos.y);
+        const spriteKey = `enemy_${enemy.type}`;
+        const spriteSheet = spriteSheets[spriteKey];
+        const frameCount = frameCounts[spriteKey] || 1;
 
-            // Apply orientation
-            let scaleX = 1;
-            let rotation = 0;
-            if (enemy.vectorUnder) {
-                rotation = atan2(enemy.vel.y, enemy.vel.x) - PI / 2;
-            } else if (enemy.isBoss) {
-                rotation = atan2(player.pos.y - enemy.pos.y, player.pos.x - enemy.pos.x) - PI / 2;
-            } else if (enemy.vel.x > 0) {
-                scaleX = -1;
-            }
-            scale(scaleX, 1);
-            rotate(rotation);
-
-            // Draw sprite
-            const spriteKey = `enemy_${enemy.type}`;
-            const spriteSheet = spriteSheets[spriteKey];
-            const frameCount = frameCounts[spriteKey] || 1;
-            if (spriteSheet && spriteSheet.width > 0 && frameCount > 0) {
-                try {
-                    image(spriteSheet, -24, -24, 48, 48, enemy.currentFrame * 48, 0, 48, 48);
-                    if (debugLog && debugMode) {
-                        console.log(`Drawing ${spriteKey} at frame ${enemy.currentFrame}`);
-                    }
-                } catch (e) {
-                    console.error(`Error drawing sprite for ${spriteKey}:`, e);
-                    fill(255, 100, 100);
-                    noStroke();
-                    ellipse(0, 0, enemy.size * 2);
-                }
-            } else {
-                console.warn(`Sprite sheet missing or invalid for ${spriteKey}`);
-                fill(255, 100, 100);
-                noStroke();
-                ellipse(0, 0, enemy.size * 2);
-            }
-
-            pop();
-
-            // Draw status effects
-            if (enemy.isPreparingAttack) {
-                fill(255, 0, 0, 50);
-                ellipse(0, 0, enemy.size * 2 + 5);
-            }
-            if (enemy.poisoned) {
-                fill(0, 255, 0, 100);
-                ellipse(0, 0, enemy.size * 2 + 10);
-            }
+        // デバッグ表示：敵の位置確認用
+        if (!spriteSheet || !spriteSheet.width) {
+            fill(255, 0, 0);
+            noStroke();
+            ellipse(enemy.pos.x, enemy.pos.y, enemy.size);
+            console.warn(`Sprite missing for ${spriteKey}`);
+            continue;
         }
+
+        push();
+        translate(enemy.pos.x+160, enemy.pos.y);
+
+        let rotation = 0;
+        let scaleX = 1;
+        if (enemy.vectorUnder) {
+            rotation = atan2(enemy.vel.y, enemy.vel.x) - PI / 2;
+        } else if (enemy.isBoss) {
+            rotation = atan2(player.pos.y - enemy.pos.y, player.pos.x - enemy.pos.x) - PI / 2;
+        } else if (enemy.vel.x > 0) {
+            scaleX = -1;
+        }
+
+        scale(scaleX, 1);
+        rotate(rotation);
+
+        // プレイヤー同様に48x48スプライトで表示
+        const frame = enemy.currentFrame % frameCount;
+        image(spriteSheet, -24, -24, 48, 48, frame * 48, 0, 48, 48);
+
+        pop();
     }
 
     pop();
