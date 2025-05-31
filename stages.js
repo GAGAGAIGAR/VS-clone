@@ -12,7 +12,7 @@ const stageConfigs = [
         sparseCount: (level) => 2 + floor(level / 6),
         denseCount: (level) => 9 + floor(level / 3),
         bossSpawns: [
-            { level: 5, type: 'Z' },
+            { level: 1, type: 'Z' },
             { level: 10, type: 'Y' },
             { level: 20, type: 'X', interval: 10 }
         ],
@@ -29,6 +29,14 @@ function getRushTypeCorrection(enemyType) {
 function getStageConfig(stage) {
     const config = stageConfigs.find(s => s.stage === stage);
     return config || stageConfigs[0];
+}
+
+function resetStageState() {
+    lastBossLevels = { Z: -1, Y: -1, X: -1 };
+    lastSpawn = 0;
+    pacing = 'slow';
+    spawnMode = 'sparse';
+    console.log('ステージ状態をリセットしました');
 }
 
 function updateStageLogic(stage) {

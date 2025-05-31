@@ -9,9 +9,7 @@ function updateEffects() {
         }
         for (let j = enemies.length - 1; j >= 0; j--) {
             let e = enemies[j];
-            if (!e || enemiesToRemove.has(j)) {
-                continue;
-            }
+            if (!e || enemiesToRemove.has(j)) continue;
             let dist = p5.Vector.sub(e.pos, attack.pos).mag();
             if (dist < attack.radius) {
                 let enemyAngle = atan2(e.pos.y - attack.pos.y, e.pos.x - attack.pos.x);
@@ -23,13 +21,7 @@ function updateEffects() {
                         text: attack.damage.toFixed(0),
                         time: millis()
                     });
-                    if (debugLog && debugMode) {
-                        console.log(`Melee hit: enemy index=${j}, damage=${attack.damage}, hp=${e.hp}`);
-                    }
                     if (e.hp <= 0) {
-                        if (debugLog && debugMode) {
-                            console.log(`Calling handleEnemyDeath: index=${j}, source=melee`);
-                        }
                         handleEnemyDeath(e, j);
                     }
                 }
@@ -37,25 +29,50 @@ function updateEffects() {
         }
     }
 
+    // 弾処理用の enemiesToRemove スナップショット
+    const enemiesToRemoveSnapshot = new Set(enemiesToRemove);
+
     // 弾
     const maxIterations = 10000;
     let loopCounter = 0;
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let p = projectiles[i];
-        p.pos.add(p.vel);
-        if (p.pos.x < 0 || p.pos.x > 5000 || p.pos.y < 0 || p.pos.y > 3500 ||
-            (!p.enemy && p.pos.dist(player.pos) > playerStats.attackRange)) {
+        if (!p || !p.pos || !p.vel) {
             projectilesToRemove.add(i);
+            if (debugLog && debugMode) {
+                console.log(`Bullet ${i} removed: Invalid projectile`);
+            }
             continue;
         }
-        if (p.enemy && p.origin && p.range) {
+        p.pos.add(p.vel);
+        if (p.pos.x < 0 || p.pos.x > 5000 || p.pos.y < 0 || p.pos.y > 3500) {
+            projectilesToRemove.add(i);
+            if (debugLog && debugMode) {
+                console.log(`Bullet ${i} removed: Out of bounds (x=${p.pos.x}, y=${p.pos.y})`);
+            }
+            continue;
+        }
+        if (!p.enemy && p.pos.dist(player.pos) > playerStats.attackRange) {
+            projectilesToRemove.add(i);
+            if (debugLog && debugMode) {
+                console.log(`Bullet ${i} removed: Exceeded player attack range`);
+            }
+            continue;
+        }
+        if (p.enemy && p.origin && p.range && (!p.createdTime || millis() - p.createdTime > 16)) {
             let distanceTraveled = p.pos.dist(p.origin);
             if (distanceTraveled > p.range) {
                 projectilesToRemove.add(i);
+                if (debugLog && debugMode) {
+                    console.log(`Bullet ${i} removed: Exceeded enemy range`);
+                }
                 continue;
             }
         }
         if (p.enemy && p.pos.dist(player.pos) < 25 && !playerStats.isInvincible) {
+            if (p.sourceEnemyType) {
+                playerStats.lastDamageEnemyType = p.sourceEnemyType;
+            }
             if (playerStats.shieldActive > 0) {
                 playerStats.shieldActive--;
                 playerStats.lastShield = millis();
@@ -69,19 +86,23 @@ function updateEffects() {
                 if (playerStats.hp <= 0) gameState = 'gameOver';
             }
             projectilesToRemove.add(i);
+            if (debugLog && debugMode) {
+                console.log(`Bullet ${i} removed: Hit player`);
+            }
+            continue;
         }
         if (!p.enemy) {
             for (let j = enemies.length - 1; j >= 0; j--) {
+                if (enemiesToRemoveSnapshot.has(j) || !enemies[j]) continue;
                 let e = enemies[j];
-                if (!e || enemiesToRemove.has(j)) {
-                    if (debugLog && debugMode) {
-                        console.log(`Skipping projectile hit: enemy index=${j}, inRemoveSet=${enemiesToRemove.has(j)}`);
-                    }
-                    continue;
-                }
                 loopCounter++;
-                if (loopCounter > maxIterations) break;
-                let hitRadius = e.type == 'Z' ? 60 : 20;
+                if (loopCounter > maxIterations) {
+                    if (debugLog && debugMode) {
+                        console.log('Max iterations reached in bullet collision loop');
+                    }
+                    break;
+                }
+                let hitRadius = e.type === 'Z' ? 60 : 20;
                 if (p5.Vector.sub(e.pos, p.pos).mag() < hitRadius) {
                     e.hp -= p.damage;
                     damagePopups.push({
@@ -89,9 +110,6 @@ function updateEffects() {
                         text: p.damage.toFixed(0),
                         time: millis()
                     });
-                    if (debugLog && debugMode) {
-                        console.log(`Projectile hit: enemy index=${j}, damage=${p.damage}, hp=${e.hp}`);
-                    }
                     if (playerStats.areaDamageRadius > 0) {
                         effectCircles.push({
                             pos: e.pos.copy(),
@@ -99,10 +117,16 @@ function updateEffects() {
                             time: millis(),
                             maxRadius: playerStats.areaDamageRadius
                         });
+                        const areaDamageSnapshot = new Set(enemiesToRemoveSnapshot);
                         for (let k = enemies.length - 1; k >= 0; k--) {
-                            if (!enemies[k] || k == j || enemiesToRemove.has(k)) continue;
+                            if (areaDamageSnapshot.has(k) || !enemies[k] || k === j) continue;
                             loopCounter++;
-                            if (loopCounter > maxIterations) break;
+                            if (loopCounter > maxIterations) {
+                                if (debugLog && debugMode) {
+                                    console.log('Max iterations reached in area damage loop');
+                                }
+                                break;
+                            }
                             if (p5.Vector.sub(e.pos, enemies[k].pos).mag() < playerStats.areaDamageRadius) {
                                 enemies[k].hp -= playerStats.attack * 2;
                                 damagePopups.push({
@@ -110,28 +134,22 @@ function updateEffects() {
                                     text: (playerStats.attack * 2).toFixed(0),
                                     time: millis()
                                 });
-                                if (debugLog && debugMode) {
-                                    console.log(`Area damage hit: enemy index=${k}, damage=${playerStats.attack * 2}, hp=${enemies[k].hp}`);
-                                }
                                 if (enemies[k].hp <= 0) {
-                                    if (debugLog && debugMode) {
-                                        console.log(`Calling handleEnemyDeath: index=${k}, source=areaDamage`);
-                                    }
                                     handleEnemyDeath(enemies[k], k);
                                 }
                             }
                         }
                     }
                     if (e.hp <= 0) {
-                        if (debugLog && debugMode) {
-                            console.log(`Calling handleEnemyDeath: index=${j}, source=projectile`);
-                        }
                         handleEnemyDeath(e, j);
                     }
                     if (isFinite(p.pierce)) {
                         p.pierce--;
                         if (p.pierce <= 0) {
                             projectilesToRemove.add(i);
+                            if (debugLog && debugMode) {
+                                console.log(`Bullet ${i} removed: Pierce count exhausted`);
+                            }
                             break;
                         }
                     }
@@ -142,15 +160,19 @@ function updateEffects() {
 
     // 敵との接触
     loopCounter = 0;
+    const contactSnapshot = new Set(enemiesToRemove);
     for (let i = enemies.length - 1; i >= 0; i--) {
+        if (contactSnapshot.has(i) || !enemies[i]) continue;
         let e = enemies[i];
-        if (!e || enemiesToRemove.has(i)) {
+        loopCounter++;
+        if (loopCounter > maxIterations) {
             if (debugLog && debugMode) {
-                console.log(`Skipping contact: enemy index=${i}, inRemoveSet=${enemiesToRemove.has(i)}`);
+                console.log('Max iterations reached in contact loop');
             }
-            continue;
+            break;
         }
         if (p5.Vector.sub(player.pos, e.pos).mag() < 25 && !playerStats.isInvincible) {
+            playerStats.lastDamageEnemyType = e.type;
             let damage = e.contactDamage;
             if (playerStats.shieldActive > 0) {
                 playerStats.shieldActive--;
@@ -162,13 +184,7 @@ function updateEffects() {
                     time: millis()
                 });
                 triggerAssaultArmor();
-                if (debugLog && debugMode) {
-                    console.log(`Contact hit (shield): enemy index=${i}, damage=${playerStats.attack}, hp=${e.hp}`);
-                }
                 if (e.hp <= 0) {
-                    if (debugLog && debugMode) {
-                        console.log(`Calling handleEnemyDeath: index=${i}, source=contact_shield`);
-                    }
                     handleEnemyDeath(e, i);
                 }
             } else {
@@ -184,17 +200,18 @@ function updateEffects() {
 
     // 毒沼
     loopCounter = 0;
+    const poisonSnapshot = new Set(enemiesToRemove);
     for (let swamp of poisonSwamps) {
         for (let j = enemies.length - 1; j >= 0; j--) {
+            if (poisonSnapshot.has(j) || !enemies[j]) continue;
             let e = enemies[j];
-            if (!e || enemiesToRemove.has(j)) {
-                if (debugLog && debugMode) {
-                    console.log(`Skipping poison: enemy index=${j}, inRemoveSet=${enemiesToRemove.has(j)}`);
-                }
-                continue;
-            }
             loopCounter++;
-            if (loopCounter > maxIterations) break;
+            if (loopCounter > maxIterations) {
+                if (debugLog && debugMode) {
+                    console.log('Max iterations reached in poison swamp loop');
+                }
+                break;
+            }
             if (p5.Vector.sub(swamp.pos, e.pos).mag() < swamp.radius) e.poisoned = true;
             if (e.poisoned && millis() - e.lastPoisonDamage > 2000) {
                 let damage = playerStats.attack * playerStats.poisonSwampDamageMultiplier;
@@ -205,13 +222,7 @@ function updateEffects() {
                     time: millis()
                 });
                 e.lastPoisonDamage = millis();
-                if (debugLog && debugMode) {
-                    console.log(`Poison hit: enemy index=${j}, damage=${damage}, hp=${e.hp}`);
-                }
                 if (e.hp <= 0) {
-                    if (debugLog && debugMode) {
-                        console.log(`Calling handleEnemyDeath: index=${j}, source=poison`);
-                    }
                     handleEnemyDeath(e, j);
                 }
             }
@@ -230,9 +241,6 @@ function updateEffects() {
                 playerStats.exp++;
                 score += 10;
                 expItems.splice(i, 1);
-                if (debugLog && debugMode) {
-                    console.log(`Exp item ${i} collected, exp=${playerStats.exp}, score=${score}`);
-                }
                 if (playerStats.exp >= playerStats.expToNext) levelUp();
                 continue;
             }
@@ -240,9 +248,19 @@ function updateEffects() {
     }
 
     // 削除処理
-    ([...projectilesToRemove].sort((a, b) => b - a)).forEach(i => projectiles.splice(i, 1));
+    ([...projectilesToRemove].sort((a, b) => b - a)).forEach(i => {
+        if (i >= 0 && i < projectiles.length) {
+            projectiles.splice(i, 1);
+        } else {
+            if (debugLog && debugMode) {
+                console.log(`Invalid projectile index ${i} skipped`);
+            }
+        }
+    });
+    projectilesToRemove.clear();
 }
 
+// 他の関数（drawMap, drawPlayer, drawOtherEffects, drawBullets, drawEnemyBullets）は変更なし
 function drawMap() {
     push();
     translate(800 - player.pos.x, 360 - player.pos.y);
@@ -252,7 +270,6 @@ function drawMap() {
     let viewportRight = player.pos.x + 960 / 2;
     let viewportTop = player.pos.y - 720 / 2;
     let viewportBottom = player.pos.y + 720 / 2;
-    // マップ外の黒塗り
     if (viewportLeft < 0) rect(viewportLeft, viewportTop, -viewportLeft, 720);
     if (viewportRight > mapWidth) rect(mapWidth, viewportTop, viewportRight - mapWidth, 720);
     if (viewportTop < 0) rect(viewportLeft, viewportTop, 960, -viewportTop);
@@ -275,13 +292,11 @@ function drawPlayer() {
             let scaleX = player.vel.x < 0 ? -1 : 1;
             scale(scaleX, 1);
             if (playerStats.isFlashing && floor((millis() - playerStats.flashStart) / 100) % 2 === 0) {
-                // Skip drawing during flash
             } else {
                 image(spriteSheets[selectedCharacter], -24, -24, 48, 48, playerStats.currentFrame * 48, 0, 48, 48);
             }
             pop();
         } else {
-            // Fallback to ellipse
             fill(255);
             if (playerStats.isFlashing && floor((millis() - playerStats.flashStart) / 100) % 2 === 0) {
                 ellipse(player.pos.x, player.pos.y, 20, 20);
@@ -297,13 +312,11 @@ function drawOtherEffects() {
     push();
     translate(800 - player.pos.x, 360 - player.pos.y);
 
-    // スローフィールド
     if (playerStats.slowField > 0) {
         fill(0, 0, 255, 50);
         ellipse(player.pos.x, player.pos.y, playerStats.slowField * 2);
     }
 
-    // シールド
     if (playerStats.shieldActive > 0) {
         let canvasX = player.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
@@ -315,7 +328,6 @@ function drawOtherEffects() {
         }
     }
 
-    // ビット
     if (playerStats.bits > 0) {
         bits.forEach((bit, i) => {
             let angle = bit.angle + (playerStats.bits == 2 ? i * PI : playerStats.bits == 3 ? i * TWO_PI / 3 : 0);
@@ -329,7 +341,6 @@ function drawOtherEffects() {
         });
     }
 
-    // 射撃ビット
     if (playerStats.shootingBits > 0) {
         shootingBits.forEach((bit, i) => {
             let angle = bit.angle + (playerStats.shootingBits == 2 ? i * PI : playerStats.shootingBits == 3 ? i * TWO_PI / 3 : 0);
@@ -343,7 +354,6 @@ function drawOtherEffects() {
         });
     }
 
-    // 近接攻撃
     for (let attack of meleeAttacks) {
         let t = (millis() - attack.time) / 500;
         let canvasX = attack.pos.x - (player.pos.x - 960 / 2) + 320;
@@ -354,7 +364,6 @@ function drawOtherEffects() {
         }
     }
 
-    // 経験値アイテム
     for (let item of expItems) {
         let canvasX = item.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
@@ -363,7 +372,6 @@ function drawOtherEffects() {
         }
     }
 
-    // ダメージポップアップ
     for (let popup of damagePopups) {
         let canvasX = popup.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
@@ -375,7 +383,6 @@ function drawOtherEffects() {
         if (millis() - popup.time > 1000) damagePopups.splice(damagePopups.indexOf(popup), 1);
     }
 
-    // エフェクトサークル
     for (let circle of effectCircles) {
         let canvasX = circle.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
@@ -387,7 +394,6 @@ function drawOtherEffects() {
         if (millis() - circle.time > 300) effectCircles.splice(effectCircles.indexOf(circle), 1);
     }
 
-    // 毒沼
     for (let swamp of poisonSwamps) {
         let canvasX = swamp.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
@@ -397,7 +403,6 @@ function drawOtherEffects() {
         if (millis() - swamp.time > 4000) poisonSwamps.splice(poisonSwamps.indexOf(swamp), 1);
     }
 
-    // ラッシュエフェクト
     if (millis() - rushEffectTime < 1000) {
         fill(255, 0, 0, 150);
         rect(330, 10, 100, 40);
@@ -416,7 +421,7 @@ function drawBullets() {
     push();
     translate(800 - player.pos.x, 360 - player.pos.y);
     for (let p of projectiles) {
-        if (p.enemy) continue; // Skip enemy bullets
+        if (p.enemy) continue;
         let canvasX = p.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
             fill(255, 255, 0);
@@ -431,7 +436,7 @@ function drawEnemyBullets() {
     push();
     translate(800 - player.pos.x, 360 - player.pos.y);
     for (let p of projectiles) {
-        if (!p.enemy) continue; // Only enemy bullets
+        if (!p.enemy) continue;
         let canvasX = p.pos.x - (player.pos.x - 960 / 2) + 320;
         if (canvasX >= 320) {
             fill(255, 0, 0);

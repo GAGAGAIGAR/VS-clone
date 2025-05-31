@@ -1,0 +1,118 @@
+{
+  "events": {
+    "gameOver": {
+      "ANNA": {
+        "default": {
+          "thumbnail": "assets/thumbnails/anna_go.jpg",
+          "steps": [
+            {
+              "type": "text",
+              "content": "Anna has fallen in battle.",
+              "duration": 3000
+            },
+            {
+              "type": "image",
+              "path": "assets/images/anna_go.png",
+              "duration": 3500,
+              "effect": "flash",
+              "effectParams": { "interval": 200, "count": 5 }
+            },
+            {
+              "type": "text",
+              "content": "Her mission ends here.",
+              "duration": 2000
+            }
+          ]
+        },
+        "tentacle": {
+          "thumbnail": "assets/thumbnails/anna_tentacle_go.jpg",
+          "steps": [
+            {
+              "type": "text",
+              "content": "Anna was overwhelmed by the tentacle creature.",
+              "duration": 3000
+            },
+            {
+              "type": "image",
+              "path": "assets/images/anna_tentacle_go.png",
+              "duration": 3500,
+              "effect": "flash",
+              "effectParams": { "interval": 150, "count": 5 }
+            },
+            {
+              "type": "text",
+              "content": "The tentacles were too much...",
+              "duration": 2500
+            }
+          ]
+        },
+        "slime": {
+          "thumbnail": "assets/thumbnails/anna_slime_go.jpg",
+          "steps": [
+            {
+              "type": "text",
+              "content": "Anna was dissolved by the slime.",
+              "duration": 3000
+            },
+            {
+              "type": "image",
+              "path": "assets/images/anna_slime_go.png",
+              "duration": 3200,
+              "effect": "none"
+            },
+            {
+              "type": "text",
+              "content": "A sticky end for Anna.",
+              "duration": 2200
+            }
+          ]
+        }
+      },
+      "TRACY": {
+        "default": {
+          "thumbnail": "assets/thumbnails/tracy_go.jpg",
+          "steps": [
+            {
+              "type": "text",
+              "content": "Tracy's shield failed her.",
+              "duration": 3000
+            },
+            {
+              "type": "image",
+              "path": "assets/images/tracy_go.png",
+              "duration": 3500,
+              "effect": "flash",
+              "effectParams": { "interval": 200, "count": 5 }
+            },
+            {
+              "type": "text",
+              "content": "She fought bravely to the end.",
+              "duration": 2000
+            }
+          ]
+        },
+        "tentacle": {
+          "steps": [
+            {
+              "type": "text",
+              "content": "Tracy was consumed by the tentacle creature.",
+              "duration": 3000
+            },
+            {
+              "type": "image",
+              "path": "assets/images/tracy_tentacle_go.png",
+              "duration": 3500,
+              "effect": "flash",
+              "effectParams": { "interval": 150, "count": 5 }
+            },
+            {
+              "type": "text",
+              "content": "Her speed couldn't save her.",
+              "duration": 2500
+            }
+          ]
+        }
+      }
+    }
+  }
+}

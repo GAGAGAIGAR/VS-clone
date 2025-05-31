@@ -1,179 +1,153 @@
-<!DOCTYPE html>
-<html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STS (仮)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
-    <script src="portrait.js"></script>
-    <script src="character&upgrades.js"></script>
-    <script src="stages.js"></script>
-    <script src="enemies.js"></script>
-    <script src="game.js"></script>
-    <script src="effects.js"></script>
-    <script src="player.js"></script>
-    <script src="ui.js"></script>
     <style>
-        
         body {
             margin: 0;
-            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
+            background: #000;
+            width: 100vw;
             height: 100vh;
-            background-color: #222;
             overflow: hidden;
         }
-        #title-screen, #options-screen, #pause-screen, #character-select, #resultScreen, #game-over {
+        #title, #options, #paused, #result, #gameOver, #recall {
+            display: none;
             position: absolute;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            z-index: 10;
+            color: white;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            width: 100%;
+            height: 100%;
         }
-        #title-screen h1 {
-            font-size: 48px;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px #000;
+        #title {
+            display: block;
         }
-        .button {
-            padding: 15px 30px;
+        button {
+            padding: 10px 20px;
             margin: 10px;
             font-size: 18px;
-            background-color: #444;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            background: #333;
+            color: white;
+            border: 1px solid #fff;
+            border-radius: 5px;
         }
-        .button:hover, .hovered {
-            background-color: #666;
+        button:hover {
+            background: #555;
+            color: yellow;
         }
-        #options-screen, #pause-screen, #character-select, #resultScreen, #game-over {
+        h1 {
+            margin-top: 20vh;
+            font-size: 48px;
+        }
+        canvas {
             display: none;
         }
-        #game-canvas {
-            position: absolute;
-            z-index: 2;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        #options p {
+            font-size: 18px;
+            margin: 20px 0;
         }
-        #portrait-canvas {
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 3;
-            width: 320px;
-            height: 720px;
-            background-color: #000;
+        #options input[type="range"] {
+            vertical-align: middle;
+            width: 200px;
+        }
+        #result p {
+            font-size: 18px;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
-    <canvas id="portrait-canvas" width="320" height="720"></canvas>
-    <div id="title-screen">
+    <div id="title">
         <h1>STS (仮)</h1>
-        <button class="button" onclick="setGameState('characterSelect')">スタート</button>
-        <button class="button" onclick="setGameState('options')">オプション</button>
+        <button id="startBtn" onclick="setGameState('characterSelect')">スタート</button>
+        <button id="recallBtn" onclick="setGameState('recall')">回想</button>
+        <button id="optionsBtn" onclick="setGameState('options')">オプション</button>
     </div>
-    <div id="options-screen">
-        <h2>オプション</h2>
-        <label>効果音: <input type="range" id="sfxVolume"></label><br>
-        <label>BGM音量: <input type="range" id="bgmVolume"></label><br>
-        <button class="button" onclick="setGameState('title')">戻る</button>
-    </div>
-    <div id="pause-screen">
-        <h2>一時停止</h2>
-        <button class="button" onclick="setGameState('playing')">再開</button>
-        <button class="button" onclick="backToTitle()">タイトルへ</button>
-    </div>
-    <div id="character-select"></div>
-    <div id="resultScreen">
-        <h2>結果</h2>
-        <p id="scoreText"></p>
-        <p id="killsText"></p>
-        <p id="timeText"></p>
-        <button class="button" onclick="backToTitle()">タイトルへ</button>
-    </div>
-    <div id="game-over">
-        <h2>ゲームオーバー</h2>
-        <button class="button" onclick="backToTitle()">タイトルへ</button>
-    </div>
-    <script>
-        function setGameState(newState) {
-            console.log(`ゲーム状態を変更: ${newState}`);
-            gameState = newState;
-            document.getElementById('title-screen').style.display = 'none';
-            document.getElementById('options-screen').style.display = 'none';
-            document.getElementById('pause-screen').style.display = 'none';
-            document.getElementById('character-select').style.display = 'none';
-            document.getElementById('resultScreen').style.display = 'none';
-            document.getElementById('game-over').style.display = 'none';
-            if (newState === 'title') {
-                document.getElementById('title-screen').style.display = 'flex';
-            } else if (newState === 'options') {
-                document.getElementById('options-screen').style.display = 'flex';
-            } else if (newState === 'characterSelect') {
-                document.getElementById('character-select').style.display = 'flex';
-            } else if (newState === 'result') {
-                document.getElementById('resultScreen').style.display = 'flex';
-            } else if (newState === 'gameOver') {
-                document.getElementById('game-over').style.display = 'flex';
-            } else if (newState === 'paused') {
-                document.getElementById('pause-screen').style.display = 'flex';
-            }
-            const gameCanvas = document.getElementById('game-canvas');
-            if (gameCanvas) {
-                gameCanvas.style.display = ['title', 'options'].includes(newState) ? 'none' : 'block';
-                gameCanvas.tabIndex = 0;
-                gameCanvas.focus();
-            }
-            updatePortraitCanvas(); // Update portrait when state changes
-        }
 
-        function backToTitle() {
-            setGameState('title');
-            playerStats.hp = playerStats.maxHp || 100;
-            playerStats.exp = 0;
-            playerStats.level = 1;
-            enemies = [];
-            projectiles = [];
-            expItems = [];
-            damagePopups = [];
-            effectCircles = [];
-            poisonSwamps = [];
-            meleeAttacks = [];
-            bits = [];
-            shootingBits = [];
-            gameTime = 0;
-            score = 0;
-            enemiesKilled = 0;
-            rushEnemiesKilled = 0;
-            selectedCharacter = null;
-            previewCharacter = null;
-        }
+    <div id="options">
+        <h1>オプション</h1>
+        <p>効果音: <input type="range" id="sfxVolume" min="0" max="100" value="50"></p>
+        <p>BGM音量: <input type="range" id="bgmVolume" min="0" max="100" value="50"></p>
+        <button onclick="setGameState('title')">戻る</button>
+    </div>
 
-        // Initialize portrait canvas rendering
-        let portraitCtx = document.getElementById('portrait-canvas').getContext('2d');
-        function updatePortraitCanvas() {
-            // Clear portrait canvas
-            portraitCtx.clearRect(0, 0, 320, 720);
-            // Call drawCharacterPortrait with the 2D context
-            drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats, portraitCtx);
-        }
+    <div id="paused">
+        <!-- ui.js の drawPaused に依存 -->
+    </div>
 
-        // Override p5.js setup to set canvas ID
-        let originalSetup = setup;
-        setup = function() {
-            let canvas = createCanvas(1280, 720);
-            canvas.id('game-canvas');
-            originalSetup();
-        };
-    </script>
+    <div id="result">
+        <h1>結果</h1>
+        <p id="scoreText">スコア: 0</p>
+        <p id="killsText">撃破数: 0</p>
+        <p id="timeText">経過時間: 0秒</p>
+        <button onclick="backToTitle()">タイトルへ</button>
+    </div>
+
+    <div id="gameOver">
+        <!-- ui.js の drawGameOver に依存 -->
+    </div>
+
+    <div id="recall">
+        <!-- ui.js の drawRecall に依存 -->
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <script src="preload.js"></script>
+    <script src="main.js"></script>
+    <script src="game.js"></script>
+    <script src="ui.js"></script>
+    <script src="player.js"></script>
+    <script src="enemies.js"></script>
+    <script src="effects.js"></script>
+    <script src="stages.js"></script>
+    <script src="portrait.js"></script>
+    <script src="character&upgrades.js"></script>
+    <script src="scenario.js"></script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'947eeb938f4a6870',t:'MTc0ODYxNTMzMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>

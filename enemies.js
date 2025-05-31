@@ -1,4 +1,3 @@
-// Enemy configuration
 const enemyTypes = {
     A: {
         hp: 50,
@@ -12,7 +11,8 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: true,
         behaviorPattern: 'pattern1',
-        bulletPattern: null
+        bulletPattern: null,
+        species: 'tentacle'
     },
     B: {
         hp: 30,
@@ -26,7 +26,8 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: false,
         behaviorPattern: 'pattern2',
-        bulletPattern: 'pattern1'
+        bulletPattern: '1',
+        species: 'slime'
     },
     C: {
         hp: 20,
@@ -40,7 +41,8 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: true,
         behaviorPattern: 'pattern1',
-        bulletPattern: null
+        bulletPattern: null,
+        species: 'facehugger'
     },
     D: {
         hp: 40,
@@ -54,7 +56,8 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: false,
         behaviorPattern: 'pattern2',
-        bulletPattern: 'pattern2'
+        bulletPattern: '2',
+        species: 'plant'
     },
     Z: {
         hp: 10000,
@@ -68,8 +71,9 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: false,
         behaviorPattern: 'pattern3',
-        bulletPattern: 'pattern3',
-        isBoss: true
+        bulletPattern: '3',
+        isBoss: true,
+        species: 'Renate'
     },
     Y: {
         hp: 15000,
@@ -83,8 +87,9 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: false,
         behaviorPattern: 'pattern3',
-        bulletPattern: 'pattern3',
-        isBoss: true
+        bulletPattern: '3',
+        isBoss: true,
+        species: 'Renate'
     },
     X: {
         hp: 20000,
@@ -98,16 +103,17 @@ const enemyTypes = {
         lastShot: 0,
         vectorUnder: false,
         behaviorPattern: 'pattern3',
-        bulletPattern: 'pattern3',
-        isBoss: true
+        bulletPattern: '3',
+        isBoss: true,
+        species: 'Renate'
     }
 };
 
 // Bullet pattern functions
 const bulletPatterns = {
-    pattern1: singleShot,
-    pattern2: threeWayShot,
-    pattern3: burstShot
+    1: singleShot,
+    2: threeWayShot,
+    3: burstShot
 };
 
 function singleShot(enemy, baseAngle) {
@@ -122,7 +128,9 @@ function singleShot(enemy, baseAngle) {
         slowDistance: null,
         slowSpeedMultiplier: 1,
         size: null,
-        shape: null
+        shape: null,
+        sourceEnemyType: enemy.type,
+        createdTime: millis() // 追加
     });
 }
 
@@ -140,7 +148,9 @@ function threeWayShot(enemy, baseAngle) {
             slowDistance: null,
             slowSpeedMultiplier: 1,
             size: null,
-            shape: null
+            shape: null,
+            sourceEnemyType: enemy.type,
+            createdTime: millis() // 追加
         });
     }
 }
@@ -170,7 +180,9 @@ function burstShot(enemy, baseAngle) {
             slowDistance: 250,
             slowSpeedMultiplier: 0.2,
             size: null,
-            shape: null
+            shape: null,
+            sourceEnemyType: enemy.type,
+            createdTime: millis() // 追加
         });
         enemy.burstCount++;
         enemy.burstLastShotTime = currentTime;
@@ -364,7 +376,8 @@ function spawnEnemies(count, type) {
             shakeOffset: 0,
             isBursting: false,
             burstLastShotTime: null,
-            burstCount: 0
+            burstCount: 0,
+            species: enemyConfig.species
         });
     }
 }
@@ -425,7 +438,7 @@ function drawEnemies() {
             rotation = atan2(enemy.vel.y, enemy.vel.x) - PI / 2;
         } else if (enemy.isBoss) {
             rotation = atan2(player.pos.y - enemy.pos.y, player.pos.x - enemy.pos.x) - PI / 2;
-        } else if (enemy.vel.x > 0) {
+        } else if (enemy.vel.x < 0) {
             scaleX = -1;
         }
 
@@ -459,7 +472,7 @@ function handleEnemyDeath(enemy, index) {
         speed: 5
     });
     if (debugLog && debugMode) {
-        console.log(`Exp item added at index ${index}, expItems.length=${expItems.length}, rushEnemiesKilled=${rushEnemiesKilled}, enemiesKilled=${enemiesKilled}`);
+        console.log(`Exp item added at index ${index}, type=${enemy.type}, species=${enemy.species}, expItems.length=${expItems.length}, rushEnemiesKilled=${rushEnemiesKilled}, enemiesKilled=${enemiesKilled}`);
     }
 
     if (playerStats.poisonSwampRadius > 0 && random() < 0.5) {

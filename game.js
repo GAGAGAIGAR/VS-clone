@@ -42,11 +42,15 @@ let autoFire = false;
 let hoverIndex = -1;
 let levelUpHoverIndex = -1;
 let debugLog = true;
+let lastKillerEnemyType = null;
+let saveData = { characters: {} };
 
 function setup() {
     createCanvas(1280, 720);
-    setupPortrait(); // Initialize portrait buffer
+    setupPortrait();
     player = { pos: createVector(2500, 1750), vel: createVector(0, 0), lastShot: 0 };
+    loadScenarioData();
+    loadSaveData();
     if (selectedCharacter) {
         loadCharacter(selectedCharacter);
         playerStats.currentFrame = 0;
@@ -65,6 +69,153 @@ function setup() {
             }
         });
     }
+    // Preload thumbnails for recall mode
+    if (scenarioData?.events?.gameOver) {
+        Object.keys(scenarioData.events.gameOver).forEach(character => {
+            Object.keys(scenarioData.events.gameOver[character]).forEach(species => {
+                const thumbnail = scenarioData.events.gameOver[character][species].thumbnail;
+                if (thumbnail && !loadedImages[thumbnail]) {
+                    loadImage(thumbnail, 
+                        img => {
+                            loadedImages[thumbnail] = img;
+                            console.log(`Preloaded thumbnail: ${thumbnail}`);
+                        },
+                        err => {
+                            console.error(`Failed to preload thumbnail: ${thumbnail}`);
+                        }
+                    );
+                }
+            });
+        });
+    }
+}
+
+async function loadSaveData() {
+    try {
+        saveData = await window.electronAPI.loadSaveData();
+        console.log('Save data loaded:', saveData);
+    } catch (err) {
+        console.error('Failed to load save data:', err);
+        saveData = { characters: {} };
+    }
+}
+
+async function saveGameData() {
+    if (!selectedCharacter) return;
+    
+    if (!saveData.characters[selectedCharacter]) {
+        saveData.characters[selectedCharacter] = {
+            stages: {},
+            scenarios: { gameOver: {} }
+        };
+    }
+
+    if (!saveData.characters[selectedCharacter].stages[currentStage]) {
+        saveData.characters[selectedCharacter].stages[currentStage] = { highScore: 0 };
+    }
+    saveData.characters[selectedCharacter].stages[currentStage].highScore = Math.max(
+        saveData.characters[selectedCharacter].stages[currentStage].highScore,
+        score
+    );
+
+    try {
+        const success = await window.electronAPI.saveData(saveData);
+        if (success) {
+            console.log(`Autosaved data for ${selectedCharacter}, stage ${currentStage}, score ${score}`);
+        } else {
+            console.error('Autosave failed');
+        }
+    } catch (err) {
+        console.error('Error during autosave:', err);
+    }
+}
+
+function resetGameState() {
+    gameTime = 0;
+    pacingTimer = 0;
+    stageClearTime = 0;
+    lastScoreUpdate = 0;
+    frameCounter = 0;
+    score = 0;
+    enemiesKilled = 0;
+    rushEnemiesKilled = 0;
+    rushCount = 0;
+    lastRushKills = 0;
+    lastRushSpawnCount = 0;
+    rushEffectTime = 0;
+    rushThreshold = 25;
+    currentStage = 1;
+    enemies = [];
+    projectiles = [];
+    expItems = [];
+    damagePopups = [];
+    effectCircles = [];
+    poisonSwamps = [];
+    meleeAttacks = [];
+    bits = [];
+    shootingBits = [];
+    lastKillerEnemyType = null;
+    if (playerStats) {
+        playerStats.lastDamageEnemyType = null;
+    }
+    
+    if (selectedCharacter) {
+        loadCharacter(selectedCharacter);
+        player.pos = createVector(2500, 1750);
+        player.vel = createVector(0, 0);
+        player.lastShot = 0;
+        playerStats.hp = playerStats.maxHp || 100;
+        playerStats.exp = 0;
+        playerStats.level = 1;
+    } else {
+        playerStats = {};
+        player = { pos: createVector(2500, 1750), vel: createVector(0, 0), lastShot: 0 };
+    }
+
+    if (window.upgrades) {
+        window.upgrades.forEach(upgrade => {
+            upgrade.level = 0;
+        });
+        if (debugLog && debugMode) {
+            console.log('アップグレードをリセットしました');
+        }
+    }
+
+    if (typeof levelUpChoices !== 'undefined') {
+        levelUpChoices = [];
+    }
+    levelUpHoverIndex = -1;
+
+    if (typeof resetStageState === 'function') {
+        resetStageState();
+    } else {
+        console.warn('resetStageState 関数が見つかりません');
+    }
+}
+
+function backToTitle() {
+    setGameState('title');
+    saveGameData();
+    resetGameState();
+    enemies = [];
+    projectiles = [];
+    expItems = [];
+    damagePopups = [];
+    effectCircles = [];
+    poisonSwamps = [];
+    meleeAttacks = [];
+    bits = [];
+    shootingBits = [];
+    gameTime = 0;
+    score = 0;
+    enemiesKilled = 0;
+    rushEnemiesKilled = 0;
+    selectedCharacter = null;
+    previewCharacter = null;
+    if (typeof scenarioStarted !== 'undefined') {
+        scenarioStarted = false;
+        console.log('scenarioStarted reset to false');
+    }
 }
 
 function draw() {
@@ -75,6 +226,19 @@ function draw() {
 
     background(0);
     frameCounter++;
+
+    if (gameState === 'recall') {
+        if (isScenarioPlaying) {
+            updateScenario();
+            drawScenario();
+            if (showBacklog) drawBacklog();
+            if (debugLog && debugMode) console.log('シナリオを描画');
+        } else {
+            drawRecall();
+            if (debugLog && debugMode) console.log('回想モードを描画');
+        }
+        return;
+    }
 
     if (gameState === 'playing' || gameState === 'boss') {
         enemiesToRemove.clear();
@@ -87,6 +251,7 @@ function draw() {
             stageClearTime = millis();
         }
         if (stageClearTime > 0 && millis() - stageClearTime >= 3000) {
+            saveGameData();
             setGameState('result');
         }
         if (millis() - lastScoreUpdate >= 1000) {
@@ -99,7 +264,6 @@ function draw() {
         updatePlayer();
         updateEffects();
 
-        // Draw in order: map > player > enemies > effects > bullets > enemy bullets
         drawMap();
         drawPlayer();
         drawEnemies();
@@ -146,13 +310,6 @@ function draw() {
     } else if (gameState === 'result') {
         drawResult();
     }
-
-    if (debugLog) {
-        fill(255);
-        textSize(12);
-        textAlign(LEFT, TOP);
-        text(`状態: ${gameState}, レベル: ${playerStats.level || 'N/A'}, HP: ${playerStats.hp || 'N/A'}, 敵: ${enemies.length}`, 4, 10);
-    }
 }
 
 function removeEnemies() {
@@ -186,60 +343,51 @@ function removeEnemies() {
 
 function updateResultScreen() {
     setGameState('result');
-    document.getElementById('scoreText').innerText = `スコア: ${score}`;
-    document.getElementById('killsText').innerText = `撃破数: ${enemiesKilled}`;
-    document.getElementById('timeText').innerText = `経過時間: ${floor(gameTime)}秒`;
+    const scoreText = document.getElementById('scoreText');
+    const killsText = document.getElementById('killsText');
+    const timeText = document.getElementById('timeText');
+    if (scoreText) scoreText.innerText = `スコア: ${score}`;
+    if (killsText) killsText.innerText = `撃破数: ${enemiesKilled}`;
+    if (timeText) timeText.innerText = `経過時間: ${floor(gameTime)}秒`;
 }
 
-function keyPressed() {
-    if (gameState === 'characterSelect') {
-        if (key === 'w' || key === 'W') {
-            previewCharacter = previewCharacter === 'ANNA' ? 'TRACY' : 'ANNA';
-            console.log(`プレビューキャラクター: ${previewCharacter}`);
-        } else if (key === 's' || key === 'S') {
-            previewCharacter = previewCharacter === 'TRACY' ? 'ANNA' : 'TRACY';
-            console.log(`プレビューキャラクター: ${previewCharacter}`);
-        } else if (key === ' ') {
-            if (previewCharacter && previewCharacter !== 'URANUS') {
-                selectedCharacter = previewCharacter;
-                loadCharacter(selectedCharacter);
-                gameState = 'playing';
-                setGameState('playing');
-                const canvas = document.querySelector('canvas');
-                if (canvas) canvas.style.display = 'block';
-                console.log(`選択したキャラクター: ${selectedCharacter}, 状態: playing`);
-            }
+function setGameState(newState) {
+    console.log(`ゲーム状態を変更: ${newState}`);
+    if (newState === 'gameOver') {
+        saveGameData();
+    }
+    gameState = newState;
+
+    const elements = ['title', 'options', 'paused', 'result', 'gameOver', 'recall'];
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'none';
+        } else {
+            console.warn(`DOM 要素が見つかりません: ${id}`);
         }
-    } else if (gameState === 'playing' && (key === 'q' || key === 'Q')) {
-        autoFire = !autoFire;
-        console.log(`自動射撃: ${autoFire}`);
-    } else if (gameState === 'paused' && (key === 'p' || key === 'P')) {
-        setGameState('playing');
-    } else if (gameState === 'playing' && (key === 'p' || key === 'P')) {
-        setGameState('paused');
-    } else if (gameState === 'levelUp') {
-        if (key === 'e' || key === 'E') {
-            levelUpHoverIndex = (levelUpHoverIndex + 1) % levelUpChoices.length;
-            console.log(`レベルアップ選択: ${levelUpChoices[levelUpHoverIndex].name}`);
-        } else if (key === ' ') {
-            if (levelUpHoverIndex >= 0) {
-                let upgrade = levelUpChoices[levelUpHoverIndex];
-                upgrade.level++;
-                if (typeof upgrade.effect === 'function') {
-                    if (upgrade.effect.length === 0) {
-                        upgrade.effect();
-                    } else {
-                        upgrade.effect(upgrade.level - 1);
-                    }
-                }
-                gameState = 'playing';
-                levelUpChoices = [];
-                levelUpHoverIndex = -1;
-                console.log(`選択した強化: ${upgrade.name}`);
-            }
-        }
-    } else if (gameState === 'result' && key === ' ') {
-        backToTitle();
+    });
+
+    const targetElement = document.getElementById(newState);
+    if (targetElement) {
+        targetElement.style.display = 'block';
+    } else if (['title', 'options', 'paused', 'result', 'gameOver', 'recall'].includes(newState)) {
+        console.warn(`ターゲットDOM要素が見つかりません: ${newState}`);
+    }
+
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+        canvas.style.display = ['title', 'options'].includes(newState) ? 'none' : 'block';
+        canvas.tabIndex = 0;
+        canvas.focus();
+    } else {
+        console.warn('ゲームキャンバスが見つかりません');
+    }
+
+    if (typeof drawCharacterPortrait === 'function' && newState !== 'recall') {
+        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
+    } else if (newState !== 'recall') {
+        console.warn('drawCharacterPortrait 関数が見つかりません');
     }
 }
 

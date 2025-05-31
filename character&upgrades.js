@@ -41,6 +41,7 @@ const characterParams = {
         currentFrame: 0,
         lastFrameChange: 0,
         animationDirection: 1,
+        lastDamageEnemyType: null, // 追加: 最後にダメージを与えた敵の種類
         availableUpgrades: [
             '攻撃力アップ',
             '射撃速度アップ',
@@ -97,6 +98,7 @@ const characterParams = {
         currentFrame: 0,
         lastFrameChange: 0,
         animationDirection: 1,
+        lastDamageEnemyType: null, // 追加: 最後にダメージを与えた敵の種類
         availableUpgrades: [
             '攻撃力アップ',
             '射撃速度アップ',
