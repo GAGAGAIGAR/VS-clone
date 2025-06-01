@@ -1,15 +1,17 @@
 {
-  "name": "vampire-survivors-clone",
+  "name": "sts-game",
   "version": "1.0.0",
-  "description": "A clone of Vampire Survivors using Electron and p5.js",
+  "description": "Electron-based game",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
   "dependencies": {
-    "chokidar": "^3.5.3",
-    "electron": "^22.0.0"
+    "chokidar": "^3.6.0"
   },
-  "author": "",
+  "devDependencies": {
+    "electron": "^33.0.2"
+  },
+  "author": "Your Name",
   "license": "MIT"
 }
