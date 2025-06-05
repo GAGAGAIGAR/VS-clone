@@ -7,7 +7,7 @@
           "steps": [
             {
               "type": "text",
-              "content": "Anna has fallen in battle.",
+              "content": "仮文章仮文章",
               "duration": 3000
             },
             {
@@ -19,7 +19,7 @@
             },
             {
               "type": "text",
-              "content": "Her mission ends here.",
+              "content": "仮文章",
               "duration": 2000
             }
           ]
@@ -111,6 +111,85 @@
               "duration": 2500
             }
           ]
+        }
+      }
+    },
+    "stageProgress": {
+      "ANNA": {
+        "1": {
+          "start": {
+            "steps": [
+              { "type": "text", "content": "Anna prepares for the battle in Stage 1.", "duration": 3000 },
+              { "type": "image", "path": "assets/images/anna_stage1_start.png", "duration": 3500, "effect": "none" },
+              { "type": "text", "content": "The enemy forces are approaching!", "duration": 2000 }
+            ]
+          },
+          "middle1": {
+            "trigger": "REINFORCEMENT_C_LV4",
+            "steps":[ { "type": "text","speaker": "ANNA", "content": "これが新しい立ち絵表示よ！",
+  "characterImage": "assets/images/anna_high.png", 
+  "characterPosition": 2,
+  "characterFlip": 0,     
+  "characterAppear": 2,   
+  "dimOthers": 1}]          
+          },
+          "middle2": {
+            "trigger": "BOSS_Z_APPEAR",
+            "steps": [{ "type": "text", "content": "アンナ：ボス出現！集中するわよ！", "duration": 3000 }]
+          },
+          "boss_Z_defeated": {
+            "trigger": "BOSS_Z_DEFEATED",
+            "steps": [{ "type": "text", "content": "アンナ：やった！ボスを倒したわ！", "duration": 3000 }]
+          },
+      "middle_objectives_met": { 
+        "trigger": "STAGE_OBJECTIVES_COMPLETE_MESSAGE", 
+        "steps": [
+          { "type": "text", "content": "アンナ：目標は達成したわ。いつでも離脱できる！ (Gキーで離脱)", "duration": 5000 }
+        ]
+      },
+      "clear": { 
+        "steps": [
+          { "type": "text", "content": "アンナ：ステージ1クリア！見事な戦いだったわ。", "duration": 3000 }
+        ]
+          }
+        },
+        "fr": {
+          "start": {
+            "steps": [
+              { "type": "text", "content": "Anna stands ready on the Frontline.", "duration": 3000 },
+              { "type": "image", "path": "assets/images/anna_fr_start.png", "duration": 3500, "effect": "none" },
+              { "type": "text", "content": "Hold the line against the rush!", "duration": 2000 }
+            ]
+          },
+          "middle_rush1": {
+            "trigger": "FRONTLINE_RUSH_1",
+            "steps": []
+          },
+          "clear": {
+            "steps": [] 
+          }
+        }
+      },
+      "TRACY": {
+        "1": {
+          "start": {
+            "steps": [
+              { "type": "text", "content": "Tracy gears up for Stage 1.", "duration": 3000 },
+              { "type": "image", "path": "assets/images/tracy_stage1_start.png", "duration": 3500, "effect": "none" },
+              { "type": "text", "content": "Ready to face the enemy onslaught!", "duration": 2000 }
+            ]
+          }
+
+        },
+        "fr": {
+          "start": {  
+            "steps": [
+              { "type": "text", "content": "Tracy braces for the Frontline battle.", "duration": 3000 },
+              { "type": "image", "path": "assets/images/tracy_fr_start.png", "duration": 3500, "effect": "none" },
+              { "type": "text", "content": "Defend the position at all costs!", "duration": 2000 }
+            ]
+          }
+
         }
       }
     }

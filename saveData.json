@@ -1,0 +1,41 @@
+{
+  "characters": {
+    "ANNA": {
+      "stages": {
+        "1": {
+          "highScore": 43230
+        },
+        "fr": {
+          "highScore": 14990
+        },
+        "": {
+          "highScore": 1120
+        }
+      },
+      "scenarios": {
+        "gameOver": {
+          "slime": true,
+          "default": true,
+          "facehugger": true,
+          "Renate": true,
+          "plant": true
+        }
+      }
+    },
+    "TRACY": {
+      "stages": {
+        "1": {
+          "highScore": 250
+        },
+        "fr": {
+          "highScore": 150
+        }
+      },
+      "scenarios": {
+        "gameOver": {
+          "default": true
+        }
+      }
+    }
+  }
+}

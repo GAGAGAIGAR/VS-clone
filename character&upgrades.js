@@ -1,17 +1,17 @@
 const characterParams = {
     ANNA: {
         hp: 100,
-        moveSpeed: 5,
+        moveSpeed: 4,
         attack: 120,
         attackSpeed: 400,
-        attackRange: 1200,
+        attackRange: 300,
         bulletSpeed: 10,
         attackWays: 1,
         bits: 0,
         slowField: 0,
         collectRange: 150,
         bulletSizeScale: 1,
-        explosionRadius: 0,
+        explosionRadius: 0, // 既存の誘爆ダメージ用
         areaDamageRadius: 0,
         pierceCount: 0,
         waveRadius: 0,
@@ -41,7 +41,12 @@ const characterParams = {
         currentFrame: 0,
         lastFrameChange: 0,
         animationDirection: 1,
-        lastDamageEnemyType: null, // 追加: 最後にダメージを与えた敵の種類
+        lastDamageUnitType: null,
+        // ▼▼▼ 連鎖爆裂関連のステータスを追加 ▼▼▼
+        chainExplosionEnabled: false,
+        chainExplosionRadius: 0, // アップグレードで設定
+        chainExplosionDamageMultiplier: 0.34, // 固定値
+        // ▲▲▲ 追加ここまで ▲▲▲
         availableUpgrades: [
             '攻撃力アップ',
             '射撃速度アップ',
@@ -53,7 +58,8 @@ const characterParams = {
             '射撃多方向化',
             'アイテム回収範囲増加',
             '射程拡張',
-            '拡大弾'
+            '拡大弾',
+            '連鎖爆裂' // 連鎖爆裂をリストに追加
         ]
     },
     TRACY: {
@@ -98,7 +104,10 @@ const characterParams = {
         currentFrame: 0,
         lastFrameChange: 0,
         animationDirection: 1,
-        lastDamageEnemyType: null, // 追加: 最後にダメージを与えた敵の種類
+        lastDamageUnitType: null, // 追加: 最後にダメージを与えた敵の種類
+        chainExplosionEnabled: false,
+        chainExplosionRadius: 0, // アップグレードで設定
+        chainExplosionDamageMultiplier: 0.34, // 固定値
         availableUpgrades: [
             '攻撃力アップ',
             '射撃速度アップ',
@@ -134,10 +143,10 @@ window.upgrades = [
     { name: '攻撃ビット追加', effect: () => playerStats.bits += 1, maxLevel: 3, level: 0 },
     { name: 'スローフィールド', effect: () => playerStats.slowField += 50, maxLevel: 3, level: 0 },
     { name: 'アイテム回収範囲増加', effect: () => playerStats.collectRange *= 1.5, maxLevel: 3, level: 0 },
-    { name: '射程拡張', effect: () => playerStats.attackRange *= 1.5, maxLevel: 3, level: 0 },
+    { name: '射程拡張', effect: () => playerStats.attackRange *= 5, maxLevel: 3, level: 0 },
     { name: '弾速アップ', effect: () => playerStats.bulletSpeed *= 1.2, maxLevel: 3, level: 0 },
     { name: '拡大弾', effect: (level) => {
-        playerStats.bulletSizeScale = [1.5, 2.0, 2.5][level];
+        playerStats.bulletSizeScale = [2.5, 2.0, 2.5][level];
         if (debugMode) console.log(`弾サイズを${playerStats.bulletSizeScale}倍に設定`);
     }, maxLevel: 3, level: 0 },
     { name: '誘爆ダメージ', effect: () => {
@@ -228,6 +237,17 @@ window.upgrades = [
         maxLevel: 3,
         level: 0
     },
+  {
+        name: '連鎖爆裂',
+        effect: (level) => { // level は 0, 1, 2 のいずれか
+            playerStats.chainExplosionEnabled = true;
+            playerStats.chainExplosionRadius = [80, 110, 140][level]; // 範囲は既存のまま
+            playerStats.chainExplosionDamageMultiplier = [0.3, 0.4, 0.5][level]; // ★威力倍率をレベルに応じて設定
+            if (debugMode) console.log(`連鎖爆裂 Lv.${level + 1} 有効化: 範囲=${playerStats.chainExplosionRadius}, ダメージ倍率=${playerStats.chainExplosionDamageMultiplier}`);
+        },
+        maxLevel: 3,
+        level: 0
+    },
     {
         name: 'リジェネレーション',
         effect: (level) => {
@@ -254,7 +274,7 @@ function levelUp() {
     if (selectedCharacter && characterParams[selectedCharacter]) {
         availableUpgrades = availableUpgrades.filter(u => characterParams[selectedCharacter].availableUpgrades.includes(u.name));
     }
-    for (let i = 0; i < Math.min(3, availableUpgrades.length); i++) {
+    for (let i = 0; i < Math.min(5, availableUpgrades.length); i++) {//
         let choice;
         do {
             choice = availableUpgrades[Math.floor(Math.random() * availableUpgrades.length)];

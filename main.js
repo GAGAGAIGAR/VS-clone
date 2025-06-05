@@ -25,7 +25,8 @@ function createWindow() {
         path.join(__dirname, 'game.js'),
         path.join(__dirname, 'player.js'),
         path.join(__dirname, 'ui.js'),
-        path.join(__dirname, 'scenario.js'),
+        path.join(__dirname, 'scenario.js'), 
+        path.join(__dirname, 'units.js'),
         path.join(__dirname, 'assets', 'images', '*.png')
     ], {
         persistent: true

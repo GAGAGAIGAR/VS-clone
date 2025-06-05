@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -60,11 +21,12 @@
             color: white;
             text-align: center;
             font-family: Arial, sans-serif;
-            width: 100%;
-            height: 100%;
+            width: 1280px;
+            height: 720px;
+            z-index: 10;
         }
         #title {
-            display: block;
+            display: none; /* Hidden by default, canvas handles title */
         }
         button {
             padding: 10px 20px;
@@ -85,7 +47,11 @@
             font-size: 48px;
         }
         canvas {
-            display: none;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 5; /* Below DOM elements but above portraits */
         }
         #options p {
             font-size: 18px;
@@ -102,24 +68,14 @@
     </style>
 </head>
 <body>
-    <div id="title">
-        <h1>STS (仮)</h1>
-        <button id="startBtn" onclick="setGameState('characterSelect')">スタート</button>
-        <button id="recallBtn" onclick="setGameState('recall')">回想</button>
-        <button id="optionsBtn" onclick="setGameState('options')">オプション</button>
-    </div>
-
+    <div id="title"></div> <!-- Canvas will be created by games.js -->
     <div id="options">
         <h1>オプション</h1>
         <p>効果音: <input type="range" id="sfxVolume" min="0" max="100" value="50"></p>
         <p>BGM音量: <input type="range" id="bgmVolume" min="0" max="100" value="50"></p>
         <button onclick="setGameState('title')">戻る</button>
     </div>
-
-    <div id="paused">
-        <!-- ui.js の drawPaused に依存 -->
-    </div>
-
+    <div id="paused"></div>
     <div id="result">
         <h1>結果</h1>
         <p id="scoreText">スコア: 0</p>
@@ -127,26 +83,17 @@
         <p id="timeText">経過時間: 0秒</p>
         <button onclick="backToTitle()">タイトルへ</button>
     </div>
+    <div id="gameOver"></div>
+    <div id="recall"></div>
 
-    <div id="gameOver">
-        <!-- ui.js の drawGameOver に依存 -->
-    </div>
-
-    <div id="recall">
-        <!-- ui.js の drawRecall に依存 -->
-    </div>
-
-    <script src="p5.min.js"></script>
-    <script src="preload.js"></script>
-    <script src="game.js"></script>
-    <script src="ui.js"></script>
-    <script src="player.js"></script>
-    <script src="enemies.js"></script>
-    <script src="effects.js"></script>
-    <script src="stages.js"></script>
-    <script src="portrait.js"></script>
-    <script src="character&upgrades.js"></script>
-    <script src="scenario.js"></script>
-    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'947eeb938f4a6870',t:'MTc0ODYxNTMzMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<script src="p5.min.js"></script>
+<script src="preload.js"></script> <script src="game.js"></script>
+<script src="ui.js"></script>
+<script src="player.js"></script>
+<script src="units.js"></script>
+<script src="effects.js"></script>
+<script src="stages.js"></script>
+<script src="portrait.js"></script> <script src="character&upgrades.js"></script>
+<script src="scenario.js"></script>
 </body>
 </html>

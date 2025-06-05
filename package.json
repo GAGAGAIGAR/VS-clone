@@ -10,7 +10,7 @@
     "chokidar": "^3.6.0"
   },
   "devDependencies": {
-    "electron": "^33.0.2"
+    "electron": "^36.3.2"
   },
   "author": "Your Name",
   "license": "MIT"
