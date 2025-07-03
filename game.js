@@ -91,6 +91,42 @@ let queuedCutin = null;     // ★★★ シナリオ後に実行するカット
 let queuedBGMChange = null; // ★★★ シナリオ後に実行するBGM変更を予約
 let justSpawnedUnitType = null; // 
 let justSpawnedReinforcement = null; // ★ この行を追加
+
+// --- フレームレート計測用変数 ---
+let fpsStartTime = null; // 計測開始時刻
+let fpsFrameCount = 0;    // 計測期間中のフレーム数
+let averageFps = null;    // 計測結果の平均FPS
+let fpsTrackingEnabled = true; // FPS計測を有効にするか
+let currentFps = 0;             // 毎フレームのFPS
+let lowFpsWarningStart = null;  // 低FPS警告開始時刻
+
+function setFpsTrackingEnabled(v) {
+    fpsTrackingEnabled = v;
+}
+
+function isFpsTrackingEnabled() {
+    return fpsTrackingEnabled;
+}
+function startFpsMeasurement() {
+    if (!isFpsTrackingEnabled()) return;
+    fpsStartTime = millis();
+    fpsFrameCount = 0;
+    averageFps = null;
+}
+
+function stopFpsMeasurement() {
+    if (!isFpsTrackingEnabled()) return;
+    if (fpsStartTime !== null) {
+        const durationSec = (millis() - fpsStartTime) / 1000;
+        if (durationSec > 0) {
+            averageFps = fpsFrameCount / durationSec;
+        } else {
+            averageFps = null;
+        }
+    }
+}
+
+
 // --- p5.js Functions ---
 function setup() {
     console.log("--- game.js: setup() START ---");
@@ -221,6 +257,11 @@ function resetGameState() {
     }
     activeTimeouts = [];
     console.log(`Cleared ${activeTimeouts.length} pending timeouts.`);
+
+    //FPS計測をリセット
+    fpsStartTime = null;
+    fpsFrameCount = 0;
+    averageFps = null;
 
     gameTime = 0;
     pacingTimer = 0;
@@ -566,7 +607,16 @@ function draw() {
     scale(globalScale);
     background(0);
     frameCounter++;
-
+// --- FPS計測の開始 ---
+    if (isFpsTrackingEnabled()) {
+        currentFps = frameRate();
+        if (fpsStartTime !== null && averageFps === null) {
+            fpsFrameCount++;
+        }
+        if (currentFps < 55) {
+            lowFpsWarningStart = millis();
+        }
+    }
     // --- ★★★ WebMのトリガーチェックと状態更新を追加 ★★★ ---
     // ゲームがポーズ中でもWebMは動き続けるため、gameStateのチェックの外に置く
     if (gameState !== 'scenario'){
@@ -891,6 +941,17 @@ function setGameState(newState) {
         cursor(ARROW);
     }
     gameState = newState;
+
+    // --- FPS計測の開始/終了制御 ---
+    if (isFpsTrackingEnabled()) {
+        if ((newState === 'playing' || newState === 'boss') &&
+            !['playing', 'boss', 'paused', 'levelUp'].includes(previousState)) {
+            startFpsMeasurement();
+        }
+        if (newState === 'result') {
+            stopFpsMeasurement();
+        }
+    }
     
     if (newState === 'gameOver' && previousState !== 'gameOver') {
         saveGameData();

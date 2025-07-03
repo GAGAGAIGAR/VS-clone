@@ -4,9 +4,10 @@ function updateEffects() {
         let attack = meleeAttacks[i];
         if (millis() - attack.time > attack.duration) { /* ... */ continue; }
 
-        for (let j = units.length - 1; j >= 0; j--) {
-            let u = units[j];
-            if (!u || u.isDying || unitsToRemove.has(j) || attack.hitUnits.has(u)) continue;
+        const nearbyUnits = getUnitsInNeighborCells(attack.pos, u => !u.isDying && !attack.hitUnits.has(u));
+        for (const u of nearbyUnits) {
+            const j = units.indexOf(u);
+            if (j === -1 || unitsToRemove.has(j)) continue;
             
             
             const unitConfig = unitTypes[u.type];
@@ -133,8 +134,8 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                 continue;
             }
 
- for (const allyUnit of units) {
-                if (allyUnit.affiliation !== 'ally' || allyUnit.isDying || allyUnit.isAppearing) continue;
+            const nearbyAllies = getUnitsInNeighborCells(p.pos, u => u.affiliation === 'ally' && !u.isDying && !u.isAppearing);
+            for (const allyUnit of nearbyAllies) {
                 
                 // ★★★ ここからが修正箇所 (敵の弾 → 味方ユニット) ★★★
                 const unitConfig = unitTypes[allyUnit.type];
@@ -172,9 +173,10 @@ function canDamage(sourceAffiliation, targetAffiliation) {
         
         // 味方の弾が敵に当たる判定
         if (p.sourceAffiliation === 'ally') {
-            for (let j = units.length - 1; j >= 0; j--) {
-                let u = units[j];
-                if (!u || u.isDying || unitsToRemove.has(j) || !canDamage(p.sourceAffiliation, u.affiliation)) continue;
+            const nearbyEnemies = getUnitsInNeighborCells(p.pos, u => !u.isDying && canDamage(p.sourceAffiliation, u.affiliation));
+            for (const u of nearbyEnemies) {
+                const j = units.indexOf(u);
+                if (j === -1 || unitsToRemove.has(j)) continue;
                 
                 // ★★★ ここからが修正箇所 (味方の弾 → 敵ユニット) ★★★
                 const unitConfig = unitTypes[u.type];
@@ -221,12 +223,12 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                         const areaDamage = playerStats.attack * playerStats.areaDamageMultiplier;
                         
                         // 爆風範囲内の他の敵を探してダメージを与える
-                        for (let k = units.length - 1; k >= 0; k--) {
-                            // 自分自身(u)と、すでに倒した敵は対象外
-                            if (k === j || !units[k] || units[k].isDying || unitsToRemove.has(k)) continue;
+                        const splashTargets = getUnitsInNeighborCells(u.pos, t => !t.isDying && t !== u);
+                        for (const targetUnit of splashTargets) {
+                            const k = units.indexOf(targetUnit);
+                            if (k === -1 || k === j || unitsToRemove.has(k)) continue;
 
                             // ★★★ ここからが修正箇所 (範囲ダメージ) ★★★
-                            const targetUnit = units[k];
                             const targetUnitConfig = unitTypes[targetUnit.type];
                             if (!targetUnitConfig) continue;
 

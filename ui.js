@@ -154,7 +154,11 @@ function drawUI() {
             }
         });
     }
-    // Last Damage Unit は左下に移動したので、ここからは削除
+    
+    if (isFpsTrackingEnabled()) {
+        text(`FPS: ${currentFps.toFixed(1)}`, 1280 - 330, topRightYPos);
+        topRightYPos += 20;
+    }
 
     // AutoAim表示 (変更なし)
     textAlign(CENTER, CENTER); // AutoAimテキストのために再度設定
@@ -169,6 +173,11 @@ function drawUI() {
     fill(255); // Rush情報の文字色
     text(`次のラッシュまで: ${rushThreshold - rushEnemiesKilled} 撃破`, 480, 710 - 40);
     text(`照準:WASD　マウス:照準　ポーズ:T`, 480, 730 - 40);
+        if (isFpsTrackingEnabled() && lowFpsWarningStart !== null && millis() - lowFpsWarningStart < 5000) {
+        noStroke();
+        fill(255, 0, 0, 150);
+        rect(0, 700, 960, 20);
+    }
 }
 
 function drawTitle() {
@@ -683,7 +692,11 @@ function drawResultScreen() {
     text(`スコア: ${score || 0}`, 480, 240);
     text(`撃破数: ${enemiesKilled || 0}`, 480, 280);
     text(`経過時間: ${floor(gameTime)}秒`, 480, 320);
-
+    
+    // ★★ 平均FPSの表示を追加
+    if (typeof averageFps === 'number') {
+        text(`平均FPS: ${averageFps.toFixed(2)}`, 480, 360);
+    }
     const mx = virtualCursorPos.x;
     const my = virtualCursorPos.y;
 

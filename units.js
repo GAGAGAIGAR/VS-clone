@@ -386,6 +386,26 @@ function updateUnitGridPosition(unit) {
         addUnitToGrid(unit);      // 新しい位置に追加
     }
 }
+
+// 指定位置周辺のグリッドセルに存在するユニットを取得するヘルパー
+// filterFnを指定すると、その条件を満たすユニットのみを返す
+function getUnitsInNeighborCells(pos, filterFn = null) {
+    const { col, row } = getGridCoords(pos);
+    const result = [];
+    for (let cOffset = -1; cOffset <= 1; cOffset++) {
+        for (let rOffset = -1; rOffset <= 1; rOffset++) {
+            const checkCol = col + cOffset;
+            const checkRow = row + rOffset;
+            if (checkCol < 0 || checkCol >= gridCols || checkRow < 0 || checkRow >= gridRows) continue;
+            for (const unit of grid[checkCol][checkRow]) {
+                if (!filterFn || filterFn(unit)) {
+                    result.push(unit);
+                }
+            }
+        }
+    }
+    return result;
+}
 const deathEffectTypes = {
     1: { // deathEffectId: 1 に対応
         duration: 1200, // 演出の時間 (ms)
