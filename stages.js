@@ -14,6 +14,7 @@ const stageConfigs = [
     bgmId: 3,
     duration: 180,
     levelCap: 25,
+    maxPlayerLevel: 60,
     mapSize: { width: 3000, height: 2000 },
     unitTypes: (level) => level >= 10 ? ['A', 'B', 'C', 'D'] : level >= 7 ? ['A', 'B', 'C'] : level >= 4 ? ['A', 'B'] : ['A'],
     spawnInterval: { fast: 2250, slow: 4500 },
@@ -105,6 +106,8 @@ const stageConfigs = [
     bgmId: 3,
     duration: 180,
     levelCap: 25,
+    maxPlayerLevel: 60,
+
     mapSize: { width: 3000, height: 2000 },
     terrain: [
   {

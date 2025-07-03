@@ -310,19 +310,19 @@ updateFloatingKnights(); // ★★★ 騎士の管理関数を呼び出す ★�
                 playSE(playerStats.attackSe);
             }
             
-            let ways = playerStats.attackWays;
-            for (let i = -(ways - 1) / 2; i <= (ways - 1) / 2; i++) {
-                let offset = i * PI / 12;
-                projectiles.push({
-                    pos: player.pos.copy(),
-                    vel: p5.Vector.fromAngle(aimAngle + offset).mult(playerStats.bulletSpeed),
-                    damage: playerStats.attack,
-                    pierce: playerStats.pierceCount,
-                    sourceAffiliation: 'ally',
-                    origin: player.pos.copy(),
-                    range: playerStats.attackRange,
-                    createdTime: millis()
-                });
+    let ways = playerStats.attackWays;
+    for (let i = -(ways - 1) / 2; i <= (ways - 1) / 2; i++) {
+        let offset = i * PI / 12;
+
+        // ★★★ projectiles.push({...}) を spawnProjectile() に置き換え ★★★
+        spawnProjectile({
+            pos: player.pos.copy(),
+            vel: p5.Vector.fromAngle(aimAngle + offset).mult(playerStats.bulletSpeed),
+            damage: playerStats.attack,
+            pierce: playerStats.pierceCount,
+            sourceAffiliation: 'ally',
+            range: playerStats.attackRange
+        });
             }
             player.lastShot = millis();
         }
@@ -375,17 +375,17 @@ updateFloatingKnights(); // ★★★ 騎士の管理関数を呼び出す ★�
                     return dist < closest.dist ? { u, dist } : closest; //
                 }, { dist: Infinity }).u; //
                 if (closestUnit) { //
-                    let shootAngle = atan2(closestUnit.pos.y - y, closestUnit.pos.x - x); //
-                    projectiles.push({ //
-                        pos: createVector(x, y), //
-                        vel: p5.Vector.fromAngle(shootAngle).mult(playerStats.bulletSpeed || 10), //
-                        damage: playerStats.attack, //
-                        pierce: playerStats.pierceCount, //
-                        sourceAffiliation: 'ally', //
-                        origin: createVector(x, y), //
-                        range: playerStats.attackRange, //
-                        createdTime: millis() //
-                    });
+        let shootAngle = atan2(closestUnit.pos.y - y, closestUnit.pos.x - x);
+
+        // ★★★ projectiles.push({...}) を spawnProjectile() に置き換え ★★★
+            spawnProjectile({
+                pos: createVector(x, y),
+                vel: p5.Vector.fromAngle(shootAngle).mult(playerStats.bulletSpeed || 10),
+                damage: playerStats.attack,
+                pierce: playerStats.pierceCount,
+                sourceAffiliation: 'ally',
+                range: playerStats.attackRange
+                 });
                     bit.lastShot = millis(); //
                     if (debugLog && debugMode) { //
                         console.log(`Shooting bit fired: index=${i}, targetType=${closestUnit.type}, sourceAffiliation=ally`); //

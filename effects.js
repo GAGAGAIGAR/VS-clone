@@ -75,18 +75,18 @@ function canDamage(sourceAffiliation, targetAffiliation) {
     let loopCounter = 0;
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let p = projectiles[i];
-        if (!p || !p.pos || !p.vel) {
-            projectilesToRemove.add(i);
+
+        // ★有効な弾でなければスキップする処理を追加
+        if (!p || !p.active) {
             continue;
         }
-        
-         p.pos.add(p.vel);
+
+        p.pos.add(p.vel);
 
         const collision = getTerrainCollision(p.pos);
-        // 衝突が検知され、かつその地形タイプが2でない場合のみ弾を消す
         if (collision && collision.shape.type !== 2) {
-            projectilesToRemove.add(i);
-            continue;
+            p.active = false; // ★フラグを立てる
+            continue; // このフレームの残りの処理は不要
         }
 
         if (p.decelerates) {
@@ -99,18 +99,15 @@ function canDamage(sourceAffiliation, targetAffiliation) {
         
         const mapSize = getStageConfig(currentStage).mapSize;
         if (p.pos.x < 0 || p.pos.x > mapSize.width || p.pos.y < 0 || p.pos.y > mapSize.height) {
-            projectilesToRemove.add(i);
-            continue;
+            p.active = false; //             continue;
         }
         if (p.sourceAffiliation === 'ally' && p.pos.dist(player.pos) > playerStats.attackRange) {
-            projectilesToRemove.add(i);
-            continue;
+            p.active = false; //             continue;
         }
         if (p.origin && p.range && (!p.createdTime || millis() - p.createdTime > 16)) {
             let distanceTraveled = p.pos.dist(p.origin);
             if (distanceTraveled > p.range) {
-                projectilesToRemove.add(i);
-                continue;
+            p.active = false; //                 continue;
             }
         }
 
@@ -130,7 +127,7 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                     playerStats.flashStart = millis();
                     triggerAssaultArmor();
                 }
-                projectilesToRemove.add(i);
+                    p.active = false;
                 continue;
             }
 
@@ -165,7 +162,7 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                         const attackerSpecies = unitTypes[p.sourceUnitType]?.species || null;
                         handleUnitDeath(allyUnit, units.indexOf(allyUnit), attackerSpecies);
                     }
-                    projectilesToRemove.add(i);
+                    p.active = false;
                     break; 
                 }
             }
@@ -265,7 +262,7 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                     if (u.hp <= 0) {
                         handleUnitDeath(u, j);
                         if (p.pierce <= 0) {
-                           projectilesToRemove.add(i);
+                           p.active = false;
                            break;
                         } else {
                            p.pierce--;
@@ -276,7 +273,7 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                     if (isFinite(p.pierce)) {
                         p.pierce--;
                         if (p.pierce <= 0) {
-                            projectilesToRemove.add(i);
+                            p.active = false;
                             break;
                         }
                     }
@@ -476,7 +473,13 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                 score += 10;
                 expItems.splice(i, 1);
                 if (playerStats.exp >= playerStats.expToNext) {
-                    levelUp();
+                    const config = getStageConfig(currentStage);
+                    const maxPlayerLevel = config.maxPlayerLevel || 60;
+                    if (playerStats.level < maxPlayerLevel) {
+                        levelUp();
+                    } else {
+                        playerStats.exp = playerStats.expToNext;
+                    }
                 }
                 continue; // 次のアイテムへ
             }
@@ -484,13 +487,13 @@ function canDamage(sourceAffiliation, targetAffiliation) {
     }
 
     // 削除処理
-    ([...projectilesToRemove].sort((a, b) => b - a)).forEach(i => {
-        if (i >= 0 && i < projectiles.length) {
-            projectiles.splice(i, 1);
-        } else {
-        }
-    });
-    projectilesToRemove.clear();
+    //([...projectilesToRemove].sort((a, b) => b - a)).forEach(i => {
+    //    if (i >= 0 && i < projectiles.length) {
+    //        projectiles.splice(i, 1);
+    //    } else {
+    //    }
+    //});
+    //projectilesToRemove.clear();
 }
 
 function getCameraPosition() {

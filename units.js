@@ -1,5 +1,3 @@
-
-
 const unitTypes = {
     A: {
         hp: 90,
@@ -423,40 +421,29 @@ const bulletPatterns = {
 };
 
 function singleShot(unit, baseAngle) {
-    projectiles.push({
+    // ★★★ 修正: `projectiles.push` を `spawnProjectile` に変更 ★★★
+    spawnProjectile({
         pos: unit.pos.copy(),
         vel: p5.Vector.fromAngle(baseAngle).mult(unit.bulletSpeed),
         damage: unit.bulletDamage,
-        sourceAffiliation: unit.affiliation, // 追加
-        origin: unit.pos.copy(),
+        sourceAffiliation: unit.affiliation,
         range: unit.range,
-        initialPos: unit.pos.copy(),
-        slowDistance: null,
-        slowSpeedMultiplier: 1,
-        size: null,
-        shape: null,
-        sourceUnitType: unit.type,
-        createdTime: millis()
+        sourceUnitType: unit.type
     });
 }
 
 function threeWayShot(unit, baseAngle) {
     const angles = [baseAngle - radians(20), baseAngle, baseAngle + radians(20)];
     for (const angle of angles) {
-        projectiles.push({
+        // ★★★ 修正: `projectiles.push` を `spawnProjectile` に変更 ★★★
+        spawnProjectile({
             pos: unit.pos.copy(),
             vel: p5.Vector.fromAngle(angle).mult(unit.bulletSpeed),
             damage: unit.bulletDamage,
-            sourceAffiliation: unit.affiliation, // 追加
-            origin: unit.pos.copy(),
+            sourceAffiliation: unit.affiliation,
             range: unit.range,
-            initialPos: unit.pos.copy(),
-            slowDistance: null,
-            slowSpeedMultiplier: 1,
-            size: null,
             shape: unit.type === 'D' ? 'spindle' : null,
-            sourceUnitType: unit.type,
-            createdTime: millis()
+            sourceUnitType: unit.type
         });
     }
 }
@@ -475,20 +462,17 @@ function burstShot(unit, baseAngle) {
 
     if (unit.burstCount < burstCount && currentTime - unit.burstLastShotTime >= interval) {
         const angle = baseAngle + random(-spreadAngle / 2, spreadAngle / 2);
-        projectiles.push({
+        // ★★★ 修正: `projectiles.push` を `spawnProjectile` に変更 ★★★
+        spawnProjectile({
             pos: unit.pos.copy(),
             vel: p5.Vector.fromAngle(angle).mult(unit.bulletSpeed),
             damage: unit.bulletDamage,
-            sourceAffiliation: unit.affiliation, // 追加
-            origin: unit.pos.copy(),
+            sourceAffiliation: unit.affiliation,
             range: unit.range,
-            initialPos: unit.pos.copy(),
-            slowDistance: 250,
-            slowSpeedMultiplier: 0.2,
-            size: null,
-            shape: null,
             sourceUnitType: unit.type,
-            createdTime: millis()
+            // この弾専用のプロパティ
+            slowDistance: 250,
+            slowSpeedMultiplier: 0.2
         });
         unit.burstCount++;
         unit.burstLastShotTime = currentTime;
@@ -733,12 +717,15 @@ function findClosestTarget(sourceUnit, targetAffiliation = 'any') {
     if (potentialTargets.length === 0) return null;
 
     let closestTarget = null;
-    let minDistance = Infinity;
+    // ★★★ 距離の2乗で比較するため、初期値を十分に大きく設定 ★★★
+    let minDistanceSq = Infinity; 
 
     for (const target of potentialTargets) {
-        const distance = p5.Vector.dist(sourceUnit.pos, target.pos);
-        if (distance < minDistance) {
-            minDistance = distance;
+        // ★★★ p5.Vector.dist() の代わりに magSq() を使用 ★★★
+        const distanceSq = p5.Vector.sub(sourceUnit.pos, target.pos).magSq();
+        
+        if (distanceSq < minDistanceSq) {
+            minDistanceSq = distanceSq;
             closestTarget = target;
         }
     }
@@ -1100,17 +1087,16 @@ function shakeAndCharge(unit, finalSpeed) {
 function bossDeceleratingShot(unit, baseAngle) {
     const initialVelocity = p5.Vector.fromAngle(baseAngle).mult(unit.bulletSpeed * 2);
 
-    projectiles.push({
+    // ★★★ 修正: `projectiles.push` を `spawnProjectile` に変更 ★★★
+    spawnProjectile({
         pos: unit.pos.copy(),
         vel: initialVelocity.copy(),
         damage: unit.bulletDamage,
         sourceAffiliation: unit.affiliation,
-        origin: unit.pos.copy(),
         range: unit.range,
         sourceUnitType: unit.type,
-        createdTime: millis(),
         decelerates: true,
-        initialSpeed: initialVelocity.mag() // ★★★ 最低速度を維持するために初速を記録 ★★★
+        initialSpeed: initialVelocity.mag()
     });
 }
 const behaviorPatterns = {
@@ -1189,7 +1175,9 @@ function getSeparationForce(unit) {
     if (steer.mag() > 0) {
         steer.normalize();
         steer.mult(unit.speed);
-        steer.sub(unit.vel);
+        // ★★★ 修正点: ステアリング計算(.sub(unit.vel))を削除 ★★★
+        // これにより、この力は単純な反発力となり、ユニットの現在の速度を無視して
+        // 直接的な押し出しのみを行うため、回転挙動が抑制されます。
         const unitConfig = unitTypes[unit.type];
         if (unitConfig && unitConfig.maxForce) {
            steer.limit(unitConfig.maxForce);
@@ -1202,6 +1190,7 @@ function getSeparationForce(unit) {
 
 // ユニットの物理演算とアニメーション更新
 function updateUnits() {
+    const AI_UPDATE_INTERVAL = 6; // AIの意思決定を行うフレーム間隔
 
     for (let i = units.length - 1; i >= 0; i--) {
         let unit = units[i];
@@ -1210,11 +1199,8 @@ function updateUnits() {
         const unitConfig = unitTypes[unit.type];
 
         // --- 時間経過による消滅処理 ---
-        // 時間切れになったユニットは、HPを0にする。
-        // 実際の死亡処理はeffects.jsのダメージ判定ループに任せる。
         if (unitConfig.despawnTime && millis() - (unit.spawnTime || 0) > unitConfig.despawnTime) {
             unit.hp = 0;
-            // ★ handleUnitDeathの呼び出しを削除
         }
 
         if (unit.isDying) {
@@ -1230,12 +1216,11 @@ function updateUnits() {
             }
             continue;
         }
-                // --- 無敵状態の更新 ---
-        // ユニットに無敵時間が設定されており、現在の時間(millis())が
-        // 無敵終了時間(invincibilityEndTime)を超えていたら、無敵状態を解除する
+        // --- 無敵状態の更新 ---
         if (unit.isInvincible && millis() > (unit.invincibilityEndTime || 0)) {
             unit.isInvincible = false;
         }
+
         // ユニットの最終的な移動速度を計算
         let finalSpeed = unit.speed;
         for (const zone of waterZones) {
@@ -1245,16 +1230,36 @@ function updateUnits() {
             }
         }
         
-        // 2. 行動パターンや衝突回避の「力」を計算
-        const behaviorForce = getBehaviorForce(unit, finalSpeed); 
+
+        // --- AIの計算間引き処理 ---
+        if (unit.aiUpdateCounter === undefined) {
+            unit.aiUpdateCounter = floor(random(AI_UPDATE_INTERVAL)); 
+            unit.frameBehaviorForce = createVector(0, 0); 
+        }
+        unit.aiUpdateCounter++;
+
+        if (unit.aiUpdateCounter % AI_UPDATE_INTERVAL === 0) {
+            const totalSteeringImpulse = getBehaviorForce(unit, finalSpeed);
+            unit.frameBehaviorForce = totalSteeringImpulse.div(AI_UPDATE_INTERVAL);
+        }
+
+        const behaviorForce = unit.frameBehaviorForce;
         let separationForce = getSeparationForce(unit);
 
+        // --- 向きの決定 ---
+        if (!unitConfig.vectorUnder) {
+            if (abs(behaviorForce.x) > 0.01) {
+                unit.facingDirection = (behaviorForce.x > 0) ? 1 : -1;
+            }
+        }
+        
+
+        // --- 力の合成と適用 ---
         if (unitConfig.isBoss) {
             separationForce.mult(0.1);
         } else {
             separationForce.mult(4.0);
         }
-        behaviorForce.mult(1.0);
 
         const totalForce = createVector(0, 0);
         totalForce.add(behaviorForce);
@@ -1269,52 +1274,38 @@ function updateUnits() {
 
         unit.vel.add(acceleration);
 
-        // 3. 一時的な速度制限（ボスの突進など）やプレイヤーのスロー効果を考慮して、最終的な「速度上限(speedLimit)」を決定
+        // 一時的な速度制限（ボスの突進など）やプレイヤーのスロー効果を考慮
         let speedLimit = unit.temporarySpeedLimit || finalSpeed;
         if (playerStats.slowField > 0 && p5.Vector.dist(player.pos, unit.pos) < playerStats.slowField) {
             speedLimit *= (1.0 - playerStats.slowFieldFactor);
         }
-
-        // 4. 計算した速度上限をユニットの速度に適用する
         unit.vel.limit(speedLimit);
 
-        // ★★★ ユニット用の衝突と滑りのロジック ★★★
+        // --- 衝突と滑りのロジック ---
         const unitRadius = unit.size / 2;
         const newPos = p5.Vector.add(unit.pos, unit.vel);
         
-        // 1. 移動先の座標で衝突をチェック
         const collision = getTerrainCollision(newPos, unitRadius);
-
         if (collision && (collision.shape.type === 1 || (collision.shape.type === 2 && !unitConfig.fly))) {
-            // 衝突した場合、滑るベクトルを計算して移動
             const normal = getCollisionNormal(newPos, collision);
             const dot = unit.vel.dot(normal);
             const perpendicularVel = normal.mult(dot);
             const slideVel = p5.Vector.sub(unit.vel, perpendicularVel);
             
             unit.pos.add(slideVel);
-            unit.vel = slideVel; // 速度ベクトルも更新して、慣性を滑らかにする
+            unit.vel = slideVel; 
         } else {
-            // 衝突しない場合は、通常通り移動
             unit.pos.add(unit.vel);
         }
         
-        // 2. 移動後の現在地で、再度めり込みをチェック
         const finalCollision = getTerrainCollision(unit.pos, unitRadius);
         if (finalCollision) {
-            // 3. もしめり込んでいたら、強制的に押し出して補正する
             const finalNormal = getCollisionNormal(unit.pos, finalCollision);
             unit.pos.add(finalNormal.mult(1.0));
         }
-        // --- 向きの状態を更新 ---
-        // vectorUnder（機体が傾く）でない、全てのユニットが対象
-        if (!unitConfig.vectorUnder) {
-            // 水平方向の速度が一定以上ある場合のみ、向きを更新する
-            if (abs(unit.vel.x) > 0.1) {
-                unit.facingDirection = (unit.vel.x > 0) ? 1 : -1;
-            }
-            // 速度が0に近い（停止している）場合は、facingDirectionは更新されず、最後の向きが維持される
-        }
+
+        // ★★★ 古い向き更新ロジックを削除 ★★★
+        // (新しいロジックが分離フォース適用前に移動したため、ここは不要)
 
         const mapSize = getStageConfig(currentStage).mapSize;
         unit.pos.x = constrain(unit.pos.x, 0, mapSize.width);
@@ -1326,12 +1317,21 @@ function updateUnits() {
 }
 
 function drawUnits() {
-    //push();
-    //const { cameraX, cameraY } = getCameraPosition();
-    //translate(-cameraX, -cameraY);
+    const { cameraX, cameraY } = getCameraPosition();
+    const viewportWidth = 960; // ゲーム画面の幅
+    const viewportHeight = 720; // ゲーム画面の高さ
 
     for (let unit of units) {
         if (!unit) continue;
+
+                const unitScreenX = unit.pos.x - cameraX;
+        const unitScreenY = unit.pos.y - cameraY;
+        const margin = unit.size; // ユニットの半径分のマージン
+
+        if (unitScreenX < -margin || unitScreenX > viewportWidth + margin ||
+            unitScreenY < -margin || unitScreenY > viewportHeight + margin) {
+            continue; // 画面外なら以降の描画処理をスキップ
+        }
 
         // 状態1: 死亡演出中のユニット
         if (unit.isDying) {
@@ -1719,6 +1719,21 @@ function removeUnits() {
         }
     }
 }
+/**
+ * アクティブでなくなった弾丸を `projectiles` 配列から取り除き、プールに戻す
+ */
+function cleanupProjectiles() {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+
+        // activeフラグがfalseなら、プールに戻してアクティブリストから削除
+        if (!p.active) {
+            projectilePool.push(p);
+            projectiles.splice(i, 1);
+        }
+    }
+}
+
 
 function updateAnimation(entity, frameCount) {
     if (!entity || frameCount <= 1) return;
@@ -1739,4 +1754,3 @@ function updateAnimation(entity, frameCount) {
     }
     entity.frameIndex = entity.currentFrame;
 }
-

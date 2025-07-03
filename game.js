@@ -10,7 +10,6 @@ let enableMouseCorrection = true; // ★★★ マウス補正機能の有効/�
 
 let stageCompleteSequenceStarted = false;
 let unitsToRemove = new Set();
-let projectilesToRemove = new Set();
 // gameState = 'title'; // 上で 'logo' に変更済み
 let selectedCharacter = null;
 let previewCharacter = null;
@@ -18,6 +17,8 @@ let player = null;
 let playerStats = {};
 let units = [];
 let projectiles = [];
+let projectilePool = []; // ★弾丸の倉庫（プール）をここに追加
+let projectilesToRemove = new Set(); // この変数は不要になります
 let expItems = [];
 let damagePopups = [];
 let effectCircles = [];
@@ -705,6 +706,8 @@ function draw() {
                 }
             }
             removeUnits();
+            cleanupProjectiles(); // ★弾丸のクリーンアップ処理をここに追加
+
         }
         
         // ★★★ ここからが修正箇所です ★★★
@@ -1774,4 +1777,42 @@ function checkAndTriggerWebms() {
             }
         }
     }
+}
+
+/**
+ * プールから弾丸を取得、または新規作成して初期化する
+ * @param {object} props - 弾丸の初期化に必要なプロパティ群
+ */
+function spawnProjectile(props) {
+    let p;
+
+    if (projectilePool.length > 0) {
+        // プールにストックがあれば、それを取り出して再利用
+        p = projectilePool.pop();
+    } else {
+        // プールが空なら、新しいオブジェクトを作成
+        p = {};
+    }
+
+    // -------------------------------------------
+    // オブジェクトのプロパティを初期化・上書き
+    // -------------------------------------------
+    p.active = true; // ★オブジェクトが有効であることを示すフラグ
+    p.pos = props.pos;
+    p.vel = props.vel;
+    p.damage = props.damage;
+    p.pierce = props.pierce !== undefined ? props.pierce : playerStats.pierceCount;
+    p.sourceAffiliation = props.sourceAffiliation;
+    p.sourceUnitType = props.sourceUnitType;
+    p.range = props.range;
+    p.shape = props.shape;
+    p.decelerates = props.decelerates || false;
+    p.initialSpeed = props.initialSpeed || p.vel.mag();
+
+    // 射程や生成時間の管理に必要なプロパティも毎回リセット
+    p.origin = props.pos.copy();
+    p.createdTime = millis();
+
+    // アクティブな弾丸のリストに追加
+    projectiles.push(p);
 }
