@@ -69,31 +69,29 @@
 </head>
 <body>
     <div id="title"></div> <!-- Canvas will be created by games.js -->
-    <div id="options">
-        <h1>オプション</h1>
-        <p>効果音: <input type="range" id="sfxVolume" min="0" max="100" value="50"></p>
-        <p>BGM音量: <input type="range" id="bgmVolume" min="0" max="100" value="50"></p>
-        <button onclick="setGameState('title')">戻る</button>
-    </div>
+<div id="options">
+    <h1>オプション</h1>
+    <p>効果音: <input type="range" id="sfxVolume" min="0" max="100" value="50"></p>
+    <p>BGM音量: <input type="range" id="bgmVolume" min="0" max="100" value="50"></p>
+    <button id="mouseCorrectionButton" onclick="toggleMouseCorrection()">画面端のマウス補正: ON</button>
+    <button id="terrainEffectsButton" onclick="toggleTerrainEffects()">地形効果の表示: ON</button> <button onclick="setGameState('title')">戻る</button>
+</div>
     <div id="paused"></div>
-    <div id="result">
-        <h1>結果</h1>
-        <p id="scoreText">スコア: 0</p>
-        <p id="killsText">撃破数: 0</p>
-        <p id="timeText">経過時間: 0秒</p>
-        <button onclick="backToTitle()">タイトルへ</button>
-    </div>
+    <div id="result" style="display: none;">
+        </div>
     <div id="gameOver"></div>
     <div id="recall"></div>
 
 <script src="p5.min.js"></script>
-<script src="preload.js"></script> <script src="game.js"></script>
-<script src="ui.js"></script>
+<script src="p5.sound.min.js"></script>
+<script src="portrait.js"></script> <script src="stages.js"></script>
+<script src="character&upgrades.js"></script>
+<script src="scenario.js"></script> <script src="units.js"></script>
 <script src="player.js"></script>
-<script src="units.js"></script>
 <script src="effects.js"></script>
-<script src="stages.js"></script>
-<script src="portrait.js"></script> <script src="character&upgrades.js"></script>
-<script src="scenario.js"></script>
+<script src="ui.js"></script>
+<script src="cutin.js"></script>
+<script src="editor.js"></script> 
+<script src="game.js"></script>
 </body>
 </html>

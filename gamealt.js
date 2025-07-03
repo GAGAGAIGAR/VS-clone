@@ -45,24 +45,12 @@ let frameCounts = { /* ... (既存のフレームカウント) ... */ };
 let autoFire = false;
 let levelUpHoverIndex = -1;
 let nextStageAvailable = false; // ★★★ このフラグをグローバル変数として明確に定義
-let queuedAfterScenarioActions = []; // 新しいアクションキュー
-let showTerrainEffects = true; // ★ この行を追加 (デフォルトは表示ON)
-let activeWebms = []; // 現在再生中のWebMオブジェクトを格納する配列
-const MAX_ACTIVE_WEBM = 2; // WebMの最大同時再生数
 
-//let activeStageScenarioTriggers = new Set();
 //デバッグ用変数
 let debugLog = true;
 let debugMode = false;
-let showHitboxes = true; // ★★★ この行を追加。trueにすると当たり判定が表示される
-let editorShapes = []; // 現在のステージで編集中の地形データを保持
-let editorCurrentShapeType = 'rect'; // 'rect', 'circle', 'triangle'
-let editorIsDrawing = false;
-let editorStartPos = null;
-let editorEndPos = null;
-let editorEditMode = 'place'; // 'place', 'delete', 'rotate', 'move', 'changeType'
-let shapeBeingMoved = null;   // 移動中のシェイプを保持
-let moveStartOffset = null;
+let showHitboxes = false; // ★★★ この行を追加。trueにすると当たり判定が表示される
+
 
 let whiteFlashActive = false; // 白いフラッシュがアクティブかどうか
 let whiteFlashStartTime = 0; // フラッシュ開始時間
@@ -89,8 +77,7 @@ let virtualCursorPos = { x: 0, y: 0 };
 let stageSelectMode = 'campaign'; // 'campaign' または 'frontline'
 let queuedCutin = null;     // ★★★ シナリオ後に実行するカットインを予約
 let queuedBGMChange = null; // ★★★ シナリオ後に実行するBGM変更を予約
-let justSpawnedUnitType = null; // 
-let justSpawnedReinforcement = null; // ★ この行を追加
+
 // --- p5.js Functions ---
 function setup() {
     console.log("--- game.js: setup() START ---");
@@ -181,8 +168,6 @@ async function loadSaveData() {
                 sfxVolume = gameOptions.sfxVolume;
                 bgmVolume = gameOptions.bgmVolume;
                 enableMouseCorrection = gameOptions.enableMouseCorrection;
-                showTerrainEffects = (saveData.options.showTerrainEffects !== undefined) ? saveData.options.showTerrainEffects : true;
-
                 // BGM音量を即時反映
                 if (currentBGM && currentBGM.isPlaying()) {
                     currentBGM.setVolume(bgmVolume);
@@ -202,9 +187,7 @@ function saveGameData() {
     saveData.options = {
         sfxVolume: sfxVolume,
         bgmVolume: bgmVolume,
-        enableMouseCorrection: enableMouseCorrection,
-        showTerrainEffects: showTerrainEffects // ★ 現在の設定をセーブデータに追加
-
+        enableMouseCorrection: enableMouseCorrection
     };
     
     // オブジェクト全体をセーブする
@@ -242,9 +225,6 @@ function resetGameState() {
     activeExplosions = []; // ★★★ ゲームリセット時に配列を初期化
      // ★ resetGameStateでもフラグをリセット（安全策）
     nextStageAvailable = false; 
-        window.transitionToResultAfterScenario = false; // ★ フラグをリセット
-    queuedAfterScenarioActions = []; // ★ アクションキューをリセット
-    activeStageScenarioTriggers.clear(); // ★ 実行済みトリガーもリセット
     
     units = [];
     projectiles = [];
@@ -366,152 +346,126 @@ function checkStageClearConditions() {
             stageClearConditionMet = true;
             console.log("ステージクリア条件達成！");
             
+            // ★★★ ここからが修正箇所 ★★★
             // 次のステージが存在するか確認し、存在すればnextStageAvailableフラグをtrueに設定
             const currentStageIndex = stageConfigs.findIndex(s => s.stage === currentStage);
             if (currentStageIndex !== -1 && currentStageIndex + 1 < stageConfigs.length) {
                 const nextStageConfig = stageConfigs[currentStageIndex + 1];
-                // 次のステージがキャンペーンステージ（数値）であることも確認
                 if (typeof nextStageConfig.stage === 'number') {
                     nextStageAvailable = true;
                     console.log("nextStageAvailableフラグをtrueに設定しました。");
                 }
             }
+            // ★★★ 修正ここまで ★★★
 
             startScenario('stageObjectivesMet', selectedCharacter, currentStage);
         }
     }
 }
-/**
- * アクションの配列を受け取り、順番に実行する
- * @param {Array<object>} actions - 実行するアクションの配列
- */
-function executeActions(actions) {
-    if (!actions || actions.length === 0) return;
 
-    console.log(`Executing ${actions.length} actions...`, actions);
-    for (const action of actions) {
-        if (action.type === 'cutin' && action.value) {
-            // ★ cutinのデータに加えて、科白データ(action.subtitle)も渡す
-            startCutin(action.value, action.subtitle);
-        }
-        if (action.type === 'bgm' && action.value) {
-            currentStageBgmId = action.value.id;
-            playBGM(action.value.id, action.value.loop);
-        }
-    }
-}
-
+// ★★★ 2. checkMiddleScenarioTriggers 関数の修正 ★★★
 /**
- * ステージ進行中の全てのイベントトリガーをチェックし、優先順位に従って処理する
+ * ステージ進行中のイベント発生をチェックし、シナリオやカットインを開始する
  */
 function checkMiddleScenarioTriggers() {
     if (isScenarioPlaying) return;
 
     const stageConfig = getStageConfig(currentStage);
-    const stageTriggers = stageConfig.scenarioTriggers || [];
-    const commonTriggers = commonScenarioTriggers || [];
-    
-    // --- 1. 最優先：ステージ固有のトリガーをチェック ---
-    for (const trigger of stageTriggers) {
-        let conditionMet = false;
-        const triggerKey = `stage-${trigger.scenarioTriggerId || trigger.cutin || trigger.changeBGM?.id}-${trigger.selectedCharacter || ''}`;
-        if (trigger.once && activeStageScenarioTriggers.has(triggerKey)) continue;
+    if (!stageConfig.scenarioTriggers) return;
 
-        // ★キャラクター指定がある場合、現在のキャラクターと一致するかチェック
-        if (trigger.selectedCharacter && trigger.selectedCharacter !== selectedCharacter) {
+    for (const trigger of stageConfig.scenarioTriggers) {
+        
+        let triggerKey;
+        switch (trigger.conditionType) {
+            case 'timeReached': triggerKey = `time-${trigger.timeValue}`; break;
+            case 'bossAppeared': triggerKey = `bossAppeared-${trigger.bossType}`; break;
+            case 'bossDefeated': triggerKey = `bossDefeated-${trigger.bossType}`; break;
+            default: triggerKey = trigger.scenarioTriggerId || trigger.cutin || trigger.changeBGM?.id; break;
+        }
+        const fullTriggerKey = `${currentStage}-${triggerKey}`;
+
+        if (trigger.once && activeStageScenarioTriggers.has(fullTriggerKey)) {
             continue;
         }
 
+        let conditionMet = false;
+        let consumeEventId = true;
+
         switch (trigger.conditionType) {
             case 'bossAppeared':
-                if (justSpawnedBossType === trigger.bossType) conditionMet = true;
+                if (justSpawnedBossType === trigger.bossType) { conditionMet = true; }
                 break;
             case 'bossDefeated':
-                if (justTriggeredEventId === trigger.scenarioTriggerId && defeatedBossesThisStage.has(trigger.bossType)) conditionMet = true;
+                 if (justTriggeredEventId === trigger.scenarioTriggerId && defeatedBossesThisStage.has(trigger.bossType)) { conditionMet = true; }
                 break;
             case 'reinforcementSpawned':
-                 if (justSpawnedReinforcement && 
-                    justSpawnedReinforcement.type === trigger.reinforcementDetails?.type &&
-                    justSpawnedReinforcement.level === trigger.reinforcementDetails?.level &&
-                    justSpawnedReinforcement.pattern === trigger.reinforcementDetails?.pattern) {
-                    conditionMet = true;
-                }
+                if (justTriggeredEventId === trigger.scenarioTriggerId) { conditionMet = true; }
+                break;
+            case 'eventOccurred':
+                 if (justTriggeredEventId === trigger.eventId) { conditionMet = true; }
+                break;
+            case 'rushOccurred':
+                if (justTriggeredEventId === trigger.scenarioTriggerId) { conditionMet = true; }
                 break;
             case 'timeReached':
-                if (gameTime >= trigger.timeValue) conditionMet = true;
+                if (gameTime >= trigger.timeValue) {
+                    conditionMet = true;
+                    consumeEventId = false; 
+                }
                 break;
             case 'clearConditionsMet':
-                if (stageClearConditionMet) conditionMet = true;
+                if (stageClearConditionMet) { conditionMet = true; }
                 break;
+            default:
+                 console.warn(`[MiddleTrigger] Unknown conditionType: ${trigger.conditionType}`);
+                 break;
         }
 
         if (conditionMet) {
-            console.log("Stage-specific trigger met:", trigger);
-
-            // a. 実行するべきアクションを一時リストにまとめる
-            let actionsToExecute = [];
-            if (trigger.changeBGM) {
-                actionsToExecute.push({ type: 'bgm', value: trigger.changeBGM });
+            let scenarioStarted = false;
+            // 1. シナリオIDの指定があれば、シナリオを開始する
+            if (trigger.scenarioTriggerId && typeof startScenario === 'function') {
+                if (startScenario('stageMiddle', selectedCharacter, currentStage, trigger.scenarioTriggerId)) {
+                    scenarioStarted = true;
+                }
             }
-            if (trigger.cutin) {
-                // b. カットインアクションに、字幕情報も一緒に格納する
-                const subtitleData = {
-                    text: trigger.speech,
-                    color: trigger.color,
-                    fontSize: trigger.fontSize,
-                    fontType: trigger.fontType
-                };
-                actionsToExecute.push({ type: 'cutin', value: trigger.cutin, subtitle: subtitleData });
-            }
-
-            // c. シナリオがある場合は予約、なければ即時実行
-            if (trigger.scenarioTriggerId) {
-                queuedAfterScenarioActions = actionsToExecute;
-                startScenario('stageMiddle', selectedCharacter, currentStage, trigger.scenarioTriggerId);
-            } else {
-                executeActions(actionsToExecute);
-            }
-
-            if (trigger.once) activeStageScenarioTriggers.add(triggerKey);
             
-            justSpawnedBossType = null;
-            justTriggeredEventId = null;
-            justSpawnedReinforcement = null;
-            return; 
+            // 2. シナリオが開始された場合、他の演出を「予約」する
+            if (scenarioStarted) {
+                if (trigger.cutin) {
+                    queuedCutin = trigger.cutin;
+                }
+                if (trigger.changeBGM) {
+                    queuedBGMChange = trigger.changeBGM;
+                }
+            } 
+            // 3. シナリオがない場合、演出を即座に実行する
+            else {
+                if (trigger.cutin && typeof startCutin === 'function') {
+                    startCutin(trigger.cutin);
+                }
+                if (trigger.changeBGM && typeof playBGM === 'function') {
+                    currentStageBgmId = trigger.changeBGM.id;
+                    playBGM(trigger.changeBGM.id, trigger.changeBGM.loop);
+                }
+            }
+
+            if (consumeEventId) {
+                if (trigger.conditionType === 'bossAppeared') justSpawnedBossType = null;
+                else if (['bossDefeated', 'reinforcementSpawned', 'eventOccurred', 'rushOccurred'].includes(trigger.conditionType)) {
+                    justTriggeredEventId = null;
+                }
+            }
+
+            if (trigger.once) {
+                activeStageScenarioTriggers.add(fullTriggerKey);
+            }
+            
+            // シナリオが始まった場合は、他のトリガーをチェックせずに終了
+            if (scenarioStarted) return;
         }
     }
-    
-    // --- 2. 共通トリガーのチェック（こちらも字幕対応） ---
-    for (const trigger of commonTriggers) {
-        const triggerKey = `common-${trigger.conditionType}-${trigger.unitType}`;
-        if (trigger.oncePerStage && activeStageScenarioTriggers.has(triggerKey)) continue;
-
-        if (trigger.conditionType === 'unitAppeared' && justSpawnedUnitType === trigger.unitType) {
-            console.log("Common trigger met:", trigger);
-            
-            if (trigger.cutin && typeof startCutin === 'function') {
-                const subtitleData = {
-                    text: trigger.speech,
-                    color: trigger.color,
-                    fontSize: trigger.fontSize,
-                    fontType: trigger.fontType
-                };
-                startCutin(trigger.cutin, subtitleData);
-            }
-            
-            if (trigger.oncePerStage) activeStageScenarioTriggers.add(triggerKey);
-            justSpawnedUnitType = null;
-            return;
-        }
-    }
-
-    // 全てのチェックが終わったら、フレームごとにリセットすべきフラグをクリア
-    justSpawnedBossType = null;
-    justTriggeredEventId = null;
-    justSpawnedUnitType = null;
-    justSpawnedReinforcement = null;
 }
-
 
 function backToTitle() {
     console.log("Returning to title screen.");
@@ -537,42 +491,11 @@ function windowResized() {
     console.log(`Window resized. New canvas: ${newWidth}x${newHeight}, Scale: ${globalScale}`);
 }
 
-
-function drawWorld() {
-    push(); // 描画設定を保存
-
-    // カメラの位置を取得
-    const { cameraX, cameraY } = getCameraPosition();
-    // 座標系全体をカメラの位置だけずらす
-    translate(-cameraX, -cameraY);
-
-    // --- この中で描画されるものは全てゲーム世界の座標で描画される ---
-    drawMap();
-
-
-
-    drawPlayer();
-    drawUnits();
-    drawOtherEffects();
-    drawEditorPlacedShapes();
-    drawBullets();
-    drawUnitBullets();
-    
-    pop(); // 描画設定を元に戻す
-}
-
 function draw() {
     push();
     scale(globalScale);
     background(0);
     frameCounter++;
-
-    // --- ★★★ WebMのトリガーチェックと状態更新を追加 ★★★ ---
-    // ゲームがポーズ中でもWebMは動き続けるため、gameStateのチェックの外に置く
-    if (gameState !== 'scenario'){
-    checkAndTriggerWebms();
-    updateWebmPlayers();
-    }
 
     // --- 各ゲーム状態に応じたメインの描画処理 ---
     if (gameState === 'logo') {
@@ -583,22 +506,6 @@ function draw() {
     // ★ 新しいゲーム状態 'stageSelect' を追加
     else if (gameState === 'stageSelect') {
         drawStageSelect(); // ui.js に新しく作る描画関数
-    }
-        else if (gameState === 'editorMapSelect') {
-        drawEditorMapSelect();
-    }
-    else if (gameState === 'mapEditor') {
-        // エディタモードの描画と更新
-        updateEditor();
-        // 1. ゲーム世界に属するオブジェクトを先に描画する
-        drawWorld(); 
-        
-        // 2. プレイヤーやポートレイトなどの固定UIを描画する
-        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
-        drawUI();
-
-        // 3. エディタ専用のUI（カーソルや描画中の図形）を描画する
-        drawEditorUIAndPreview();
     }
     else if (gameState === 'characterSelect') {
         drawCharacterSelect();
@@ -620,7 +527,7 @@ function draw() {
         }
     } else if (gameState === 'scenario') { 
         if (previousGameState === 'playing' || previousGameState === 'boss' || previousGameState === 'characterSelect' || previousGameState === 'characterSelect_fr') {
-        drawWorld(); 
+            drawGameScene(); 
         }
         if (isScenarioPlaying || isFadingIn) { 
             updateScenario(); 
@@ -656,42 +563,15 @@ function draw() {
             }
             removeUnits();
         }
-        
-        // ★★★ ここからが修正箇所です ★★★
-        // 古い描画関数 drawGameScene() の呼び出しを削除します。
-        // drawGameScene(); // ← この行を削除
-
-        // 代わりに、カメラ座標を適用する drawWorld() と、
-        // その上に重ねるUI関連の描画関数を直接呼び出します。
-        
-        // 1. ゲーム世界に属するオブジェクトを描画
-        drawWorld();
-        
-        // 2. 固定UI（ポートレイト、スコアなど）を描画
-        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
-        drawUI();
-        // ★★★ 修正ここまで ★★★
-    }     else if (gameState === 'paused') {
-        // 背景として、カメラ追従が適用されたゲーム世界を描画
-        drawWorld();
-        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
-        drawUI();
-        // その上にポーズ画面のUIを重ねて描画
+        drawGameScene();
+    } else if (gameState === 'paused') {
+        drawGameScene(); 
         drawPaused();    
-    } 
-    else if (gameState === 'levelUp') {
-        // 背景として、カメラ追従が適用されたゲーム世界を描画
-        drawWorld();
-        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
-        drawUI();
-        // その上にレベルアップ画面のUIを重ねて描画
+    } else if (gameState === 'levelUp') {
+        drawGameScene(); 
         drawLevelUp();   
-    } 
-    else if (gameState === 'gameOver') {
-        // 背景として、カメラ追従が適用されたゲーム世界を描画
-        drawWorld();
-        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
-        drawUI();
+    } else if (gameState === 'gameOver') {
+        drawGameScene(); 
         if (isScenarioActive()) {
             updateScenario();
             drawScenario();
@@ -711,16 +591,11 @@ function draw() {
             }
             fallbackGameOver();
         }
-    }  else if (gameState === 'result') {
-        // 背景として、カメラ追従が適用されたゲーム世界を描画
-        drawWorld();
-        drawCharacterPortrait(gameState, selectedCharacter, previewCharacter, playerStats);
-        drawUI();
-        // その上にリザルト画面のUIを重ねて描画
+    } else if (gameState === 'result') {
+        drawGameScene();
         drawResultScreen();
     }
-     drawWebmPlayers();    // カットインなどの最前面UIよりは後ろ、ゲーム画面よりは手前に描画する
-
+    
     // --- 2. 全ての描画処理の最後に、UI要素をまとめて描画 ---
     if (typeof updateAndDrawCutins === 'function') {
         updateAndDrawCutins();
@@ -737,32 +612,36 @@ function draw() {
     pop();
 }
 /**
- * ステージクリア後のシーケンス（Gキー押下時）を開始する
+ * ステージクリア後のシーケンスを開始する
  */
 function proceedToStageClearSequence() {
-    if (stageCompleteSequenceStarted) return;
     stageCompleteSequenceStarted = true;
     
-    // 次のステージがアンロックされていなければ、このタイミングでアンロック処理とセーブを行う
-    if (nextStageAvailable && saveData.stagesUnlocked && !saveData.stagesUnlocked.includes(currentStage + 1)) {
-        saveData.stagesUnlocked.push(currentStage + 1);
-        saveGameData();
-        console.log(`Stage ${currentStage + 1} unlocked and saved.`);
+    // 次のステージが存在するか確認
+    const currentStageIndex = stageConfigs.findIndex(s => s.stage === currentStage);
+    if (currentStageIndex !== -1 && currentStageIndex + 1 < stageConfigs.length) {
+        const nextStageConfig = stageConfigs[currentStageIndex + 1];
+        if (typeof nextStageConfig.stage === 'number') {
+            if (!saveData.stagesUnlocked.includes(nextStageConfig.stage)) {
+                saveData.stagesUnlocked.push(nextStageConfig.stage);
+                console.log(`Stage ${nextStageConfig.stage} unlocked!`);
+            }
+            // ★ 次のステージへ進むことが可能である、というフラグを立てる
+            nextStageAvailable = true; 
+        }
     }
+    
+    saveGameData(); // アンロック情報を先にセーブ
 
     const stageConfig = getStageConfig(currentStage);
     const clearScenarioId = stageConfig.clearScenarioId || 'stageClear';
-    
-    // シナリオ終了後にリザルト画面へ遷移するためのフラグを立てる
     window.transitionToResultAfterScenario = true; 
     
-    // クリアシナリオがあれば再生、なければ直接リザルトへ
     if (!startScenario(clearScenarioId, selectedCharacter, currentStage)) {
         window.transitionToResultAfterScenario = false;
         setGameState('result');
     }
 }
-
 
 function proceedToNextStage() {
     // フラグが立っていない場合は何もしない（安全策）
@@ -790,29 +669,19 @@ function proceedToNextStage() {
 }
 
 function goToNextStage() {
-    const currentStageIndex = stageConfigs.findIndex(s => s.stage === currentStage);
-    if (currentStageIndex === -1 || currentStageIndex + 1 >= stageConfigs.length) {
-        backToTitle(); // 次のステージがない場合はタイトルへ
-        return;
-    }
-
-    // 1. 次のステージ番号を設定
-    const nextStageConfig = stageConfigs[currentStageIndex + 1];
-    currentStage = nextStageConfig.stage;
-
-//リセット
-resetGameState()
-
-    // 3. フラグをリセット
-    nextStageAvailable = false;
-    window.transitionToResultAfterScenario = false;
-
-    // 4. 次のステージの開始シナリオを試みる
-    if (startScenario('stageStart', selectedCharacter, currentStage)) {
-        // シナリオがある場合、再生終了後にendScenarioが'playing'に遷移させる
+    if (typeof currentStage === 'number') {
+        currentStage++; // ステージ番号を1つ進める
+        resetGameState(); // ゲームの状態をリセット
+        
+        // ステージ開始シナリオがあれば再生、なければ即ゲーム開始
+        if (startScenario('stageStart', selectedCharacter, currentStage)) {
+            setGameState('scenario');
+        } else {
+            setGameState('playing');
+        }
     } else {
-        // シナリオがない場合は、直接ゲームプレイを開始
-        setGameState('playing');
+        // 番号付きでないステージ（'fr'など）からはタイトルに戻る
+        backToTitle();
     }
 }
 
@@ -897,7 +766,7 @@ function setGameState(newState) {
     }
 
     // ★ DOM要素の表示/非表示リストに 'stageSelect' を追加
-    const elements = ['title', 'options', 'paused', 'result', 'gameOver', 'recall', 'characterSelect', 'characterSelect_fr', 'stageSelect', 'editorMapSelect'];
+    const elements = ['title', 'options', 'paused', 'result', 'gameOver', 'recall', 'characterSelect', 'characterSelect_fr', 'stageSelect'];
     elements.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -1123,55 +992,76 @@ function spawnUnitAt(unitTypeKey, position, overrideStats = {}) {
         return;
     }
     
-    // 1. unitConfigから全ての基本設定をコピーする
-    const newUnit = { ...unitConfig };
+    // レベル補正は固定ユニットには適用しない想定
+    const scalingFactor = 1; 
+    const forceScalingFactor = 1;
 
-    // 2. 次に、ゲーム状況に応じて計算されるプロパティや、
-    //    初期化が必要なプロパティをObject.assignで上書き・追加する
-    Object.assign(newUnit, {
+    // 基本となるユニットオブジェクトを生成
+    const newUnit = {
         pos: position.copy(),
+        homePosition: position.copy(), 
         vel: createVector(0, 0),
-        homePosition: position.copy(), // 待機AIなどで使用する初期位置
+        spawnTime: millis(), // ★★★ 出現時刻を記録
+        facingDirection: 1, // ★★★ 向きの初期値を設定 (1:右, -1:左)
         type: unitTypeKey,
-        
-        // --- 状態を初期化するためのプロパティ ---
-        spawnTime: millis(),
+        hp: unitConfig.hp * scalingFactor,
+        speed: unitConfig.speed * scalingFactor,
+        maxForce: (unitConfig.maxForce || 0.1) * forceScalingFactor,
+        weight: unitConfig.weight || 1,
+        size: unitConfig.size,
+        contactDamage: unitConfig.contactDamage,
+        attackRange: unitConfig.attackRange,
+        attackCooldown: unitConfig.attackCooldown,
+        shootInterval: unitConfig.shootInterval,
+        range: unitConfig.range,
+        bulletSpeed: unitConfig.bulletSpeed,
+        bulletDamage: unitConfig.bulletDamage,
+                        stateEffect:unitConfig.stateEffect,
         lastShot: 0,
         lastAttackTime: 0,
         lastPoisonDamage: 0,
         poisoned: false,
-        facingDirection: 1,
+        vectorUnder: unitConfig.vectorUnder,
         currentFrame: 0,
         lastFrameChange: 0,
+        frameIndex: 0,
         animationDirection: 1,
         isPreparingAttack: false,
         prepareStartTime: 0,
+        prepareAttackDelay: 0,
         cooldownEndTime: 0,
         attackState: 'approaching',
         shakeOffset: 0,
         isBursting: false,
         burstLastShotTime: null,
         burstCount: 0,
-        isDying: false,
+        species: unitConfig.species,
+        affiliation: unitConfig.affiliation,
         isAppearing: true,
         appearanceStartTime: millis(),
         deathEffect: null,
-        lastAttacker: null,
-    });
+        isDying: false,
+    };
+        newUnit.pos = position.copy();
+    newUnit.homePosition = position.copy();
+    newUnit.vel = createVector(0, 0);
+    newUnit.spawnTime = millis();
+    newUnit.facingDirection = 1;
+    newUnit.isAppearing = true;
+    newUnit.appearanceStartTime = millis();
+    newUnit.isDying = false;
+    newUnit.deathEffect = null;
+    newUnit.lastAttacker = null;
 
-    // 3. 引数で渡されたoverrideStatsで、さらに上書きする
-    //    (これにより、HPや攻撃力をステージごとに変更できる)
+    // ★★★ overrideStatsオブジェクトで指定されたプロパティで、基本値を上書き ★★★
     Object.assign(newUnit, overrideStats);
     
     // ユニットをゲームに追加
     units.push(newUnit);
     addUnitToGrid(newUnit);
-    
-    // ユニット出現トリガー用のフラグを設定
-    justSpawnedUnitType = unitTypeKey;
-    if (newUnit.isBoss) {
-        justSpawnedBossType = unitTypeKey;
-    }
+        // ★ ユニット出現後に共通トリガーをチェック
+    checkCommonCutinTriggers(unitTypeKey);
+    console.log(`Spawned unit ${unitTypeKey} at fixed position with overrides.`);
 }
 
 const spawnPatterns = {
@@ -1365,15 +1255,17 @@ function spawnUnits(count, types, pattern = 'round01') {
     const mapSize = getStageConfig(currentStage).mapSize;
     // HPと速度用のレベル補正
     const scalingFactor = 1 + (playerStats.level - 1) * 0.05;
-    // maxForce用の、より緩やかなレベル補正
+    // ★★★ maxForce用の、より緩やかなレベル補正を追加 ★★★
     const forceScalingFactor = 1 + (playerStats.level - 1) * 0.015;
 
     for (let i = 0; i < count; i++) {
         
         let unitTypeKey;
+
         if (types.length > 1) {
             unitTypeKey = selectUnitTypeByWeight(types);
-        } else {
+        } 
+        else {
             unitTypeKey = types[0];
         }
 
@@ -1382,74 +1274,89 @@ function spawnUnits(count, types, pattern = 'round01') {
             console.warn(`spawnUnits: 指定されたユニットタイプ'${unitTypeKey}'の設定が見つかりません。スキップします。`);
             continue; 
         }
-        
-        // スポーン位置、初速、遅延時間などをパターンから取得
-        const spawnData = spawnPatterns[pattern](player.pos, mapSize, i, count);
-        
-        // スポーン位置が地形と重なっていたら再試行
-        let attempts = 0;
-        while (getTerrainCollision(spawnData.pos) && attempts < 10) {
-            spawnData.pos = spawnPatterns[pattern](player.pos, mapSize, i, count).pos;
-            attempts++;
-        }
-        
+
         const scaledHp = Math.round(unitConfig.hp * scalingFactor);
         const scaledSpeed = unitConfig.speed * scalingFactor;
+        // ★★★ レベル補正を適用したmaxForceを計算 ★★★
         const scaledMaxForce = (unitConfig.maxForce || 0.1) * forceScalingFactor;
 
+        const { pos, vel, delay } = spawnPatterns[pattern](player.pos, mapSize, i, count);
+        
         const spawn = () => {
-            // 1. unitConfigから全ての基本設定をコピーする
-            const newUnit = { ...unitConfig };
-
-            // 2. 動的な値や初期値を上書き・追加する
-            Object.assign(newUnit, {
-                pos: spawnData.pos,
-                vel: spawnData.vel.mult(scaledSpeed),
+            const newUnit = {
+                pos: pos,
+                vel: vel.mult(scaledSpeed),
+               spawnTime: millis(), // ★★★ 出現時刻を記録
+                facingDirection: 1, // ★★★ 向きの初期値を設定 (1:右, -1:左)
+                type: unitTypeKey,
                 hp: scaledHp,
                 speed: scaledSpeed,
-                maxForce: scaledMaxForce,
-                type: unitTypeKey,
-                
-                // --- 状態を初期化するためのプロパティ ---
-                spawnTime: millis(),
+                maxForce: scaledMaxForce, // ★★★ ユニット個別に補正後のmaxForceを保持させる ★★★
+                size: unitConfig.size,
+                contactDamage: unitConfig.contactDamage,
+                shootInterval: unitConfig.shootInterval,
+                range: unitConfig.range,
+                bulletSpeed: unitConfig.bulletSpeed,
+                bulletDamage: unitConfig.bulletDamage,
+                stateEffect:unitConfig.stateEffect,
                 lastShot: millis(),
-                lastAttackTime: 0,
                 lastPoisonDamage: 0,
                 poisoned: false,
-                facingDirection: 1,
+                vectorUnder: unitConfig.vectorUnder,
                 currentFrame: 0,
                 lastFrameChange: 0,
+                frameIndex: 0,
                 animationDirection: 1,
                 isPreparingAttack: false,
                 prepareStartTime: 0,
+                prepareAttackDelay: 0,
                 cooldownEndTime: 0,
                 attackState: 'approaching',
                 shakeOffset: 0,
                 isBursting: false,
                 burstLastShotTime: null,
                 burstCount: 0,
-                isDying: false,
+                species: unitConfig.species,
+                affiliation: unitConfig.affiliation,
                 isAppearing: true,
                 appearanceStartTime: millis(),
                 deathEffect: null,
-                lastAttacker: null,
-            });
+                isDying: false,
+            };
 
-            if (newUnit.isBoss) {
+            newUnit.pos = pos;
+            newUnit.vel = vel.mult(unitConfig.speed * scalingFactor);
+            newUnit.hp = Math.round(unitConfig.hp * scalingFactor);
+            newUnit.speed = unitConfig.speed * scalingFactor;
+            newUnit.maxForce = (unitConfig.maxForce || 0.1) * forceScalingFactor;
+            newUnit.spawnTime = millis();
+            newUnit.facingDirection = 1;
+            newUnit.isAppearing = true;
+            newUnit.appearanceStartTime = millis();
+            newUnit.isDying = false;
+            newUnit.deathEffect = null;
+            newUnit.lastAttacker = null;
+
+            if (unitConfig.isBoss) {
                 newUnit.cooldownEndTime = millis() + 2000;
             }
 
             units.push(newUnit);
             addUnitToGrid(newUnit);
-            justSpawnedUnitType = unitTypeKey;
+                        // ★ ユニット出現後に共通トリガーをチェック
+            checkCommonCutinTriggers(unitTypeKey);
         };
 
-        if (spawnData.delay) {
+        if (unitConfig.isBoss) {
+            justSpawnedBossType = unitTypeKey;
+        }
+        
+        if (delay) {
             const timeoutId = setTimeout(() => {
                 spawn();
                 const indexToRemove = activeTimeouts.indexOf(timeoutId);
                 if (indexToRemove > -1) activeTimeouts.splice(indexToRemove, 1);
-            }, spawnData.delay);
+            }, delay);
             activeTimeouts.push(timeoutId);
         } else {
             spawn();
@@ -1523,193 +1430,6 @@ function checkCommonCutinTriggers(unitType) {
             // 実行済みとして記録
             if (trigger.oncePerStage) {
                 activeStageScenarioTriggers.add(triggerKey);
-            }
-        }
-    }
-}
-
-
-function executeActions(actions) {
-    if (!actions || actions.length === 0) return;
-
-    console.log(`Executing ${actions.length} actions...`, actions);
-    for (const action of actions) {
-        if (action.type === 'cutin' && action.value) {
-            // ★ cutinのデータに加えて、科白データ(action.subtitle)も渡す
-            startCutin(action.value, action.subtitle);
-        }
-        if (action.type === 'bgm' && action.value) {
-            currentStageBgmId = action.value.id;
-            playBGM(action.value.id, action.value.loop);
-        }
-    }
-}
-//マップエディタ上のマウス操作を処理する関数
-function mousePressed() {
-    if (gameState === 'mapEditor') {
-        handleEditorMousePressed();
-    } else {
-        handleMousePressed(); // ui.jsの関数
-    }
-}
-
-function mouseReleased() {
-    if (gameState === 'mapEditor') {
-        handleEditorMouseReleased();
-    }
-}
-
-function mouseDragged() {
-    if (gameState === 'mapEditor') {
-        handleEditorMouseDragged();
-    }
-}
-
-
-
-/**
- * ユニット情報に基づき、WebMプレイヤーを生成し、再生管理リストに追加する
- * @param {object} unit - WebM設定を持つユニットオブジェクト
- * @param {number} slot - 表示位置（0: 右側, 1: 左側）
- */
-function createWebmPlayer(unit, slot) {
-    const webmConfig = unit.webm;
-
-    const video = createVideo(webmConfig.path);
-    video.loop();
-    video.volume(0);
-    video.hide();
-
-    const background = loadImage(webmConfig.background);
-    const sound = loadSound(webmConfig.sound, s => {
-        if (s) {
-            s.setVolume(sfxVolume);
-            s.loop();
-        }
-    });
-
-    activeWebms.push({
-        unit: unit,
-        video: video,
-        background: background,
-        sound: sound,
-        state: 'fading-in',
-        alpha: 0,
-        slot: slot
-    });
-    console.log(`WebM player created for unit ${unit.type} in slot ${slot}`);
-}
-
-/**
- * 現在アクティブなWebMプレイヤーの状態を更新する
- * （フェードイン・アウト、再生終了条件のチェックなど）
- */
-function updateWebmPlayers() {
-    for (let i = activeWebms.length - 1; i >= 0; i--) {
-        const webm = activeWebms[i];
-        const distance = dist(player.pos.x, player.pos.y, webm.unit.pos.x, webm.unit.pos.y);
-
-        // フェードアウト条件のチェック
-        if ((distance > 320 || webm.unit.hp <= 0) && webm.state !== 'fading-out') {
-            webm.state = 'fading-out';
-            if(webm.sound && webm.sound.isLooping()) {
-                webm.sound.stop();
-            }
-        }
-
-        // 状態に応じたアルファ値（透明度）の更新
-        switch (webm.state) {
-            case 'fading-in':
-                webm.alpha += 15; // フェードインの速度
-                if (webm.alpha >= 255) {
-                    webm.alpha = 255;
-                    webm.state = 'visible';
-                }
-                break;
-            case 'fading-out':
-                webm.alpha -= 15; // フェードアウトの速度
-                if (webm.alpha <= 0) {
-                    // 再生を完全に停止し、リソースを解放してリストから削除
-                    webm.video.stop();
-                    webm.video.remove(); // p5.jsのビデオ要素をメモリから削除
-                    if(webm.sound) webm.sound.stop();
-                    activeWebms.splice(i, 1);
-                    console.log(`WebM player removed for unit ${webm.unit.type}`);
-                }
-                break;
-        }
-    }
-}
-
-/**
- * 現在アクティブなWebMをCanvasに描画する
- */
-function drawWebmPlayers() {
-    for (const webm of activeWebms) {
-        // 素材の読み込みが完了していない場合は描画をスキップ
-        if (!webm.background.width || !webm.video.width) continue;
-
-        push();
-        resetMatrix(); // UI描画のため、カメラやスケールの影響をリセット
-        scale(globalScale);
-        
-        // 描画先のコンテナ領域を定義
-        const containerWidth = 320; // 左右の表示領域の幅
-        const containerHeight = 720;
-        const containerY = 0;
-        const containerX = (webm.slot === 0) ? 960 : 0; // スロット0なら右側(960)、1なら左側(0)
-
-        // 透明度を設定
-        tint(255, webm.alpha);
-
-        // --- 1. 背景画像の描画 ---
-        const bgAspectRatio = webm.background.width / webm.background.height;
-        const bgH = containerHeight; // ★ 高さを720pxに固定
-        const bgW = bgH * bgAspectRatio;   // ★ アスペクト比を基に横幅を計算
-        
-        // ★ 描画領域内で中央揃えになるようにX座標を計算
-        const bgX = containerX + (containerWidth - bgW) / 2;
-        
-        image(webm.background, bgX, containerY, bgW, bgH);
-        
-        // --- 2. WebM動画の描画 ---
-        const videoAspectRatio = webm.video.width / webm.video.height;
-        const videoH = containerHeight; // ★ 高さを720pxに固定
-        const videoW = videoH * videoAspectRatio;   // ★ アスペクト比を基に横幅を計算
-        
-        // ★ 描画領域内で中央揃えになるようにX座標を計算
-        const videoX = containerX + (containerWidth - videoW) / 2;
-
-        image(webm.video, videoX, containerY, videoW, videoH);
-        
-        noTint(); // 後続の描画に影響しないようにtintをリセット
-        pop();
-    }
-}
-// game.js に新しい関数として追加
-
-/**
- * 全ユニットをチェックし、条件を満たせばWebM再生を開始する
- */
-function checkAndTriggerWebms() {
-    // 処理負荷を考慮し、数フレームに一度チェックするなどの工夫も可能
-    
-    for (const unit of units) {
-        // ユニットがWebM設定を持っているか、かつ、現在再生リストにないかを確認
-        if (unit.webm && !activeWebms.some(w => w.unit === unit)) {
-            // プレイヤーとの距離を計算
-            const distance = dist(player.pos.x, player.pos.y, unit.pos.x, unit.pos.y);
-
-            // 距離が320以内で、かつ同時再生数が上限に達していない場合
-            if (distance < 320 && activeWebms.length < MAX_ACTIVE_WEBM) {
-                // 空いているスロットを探す (0:右, 1:左)
-                let availableSlot = 0;
-                if (activeWebms.some(w => w.slot === 0)) {
-                    availableSlot = 1; // スロット0が使用中なら1を使う
-                }
-                
-                // WebMプレイヤーを生成
-                createWebmPlayer(unit, availableSlot);
             }
         }
     }

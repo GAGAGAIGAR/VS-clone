@@ -799,13 +799,17 @@ function endScenario() {
 
     console.log(`Scenario ended. Original previous state: ${originalPreviousGameState}, Ended event type: ${endedEventType}`);
 
-    if (queuedAfterScenarioActions.length > 0) {
-        // game.jsにあるヘルパー関数を呼び出す
-        if (typeof executeActions === 'function') {
-            executeActions(queuedAfterScenarioActions);
-        }
-        // 実行後にキューをクリア
-        queuedAfterScenarioActions = [];
+    // ★★★ ここからが修正箇所：予約された演出を実行 ★★★
+    if (queuedCutin && typeof startCutin === 'function') {
+        console.log(`Executing queued cutin: ${queuedCutin}`);
+        startCutin(queuedCutin);
+        queuedCutin = null; // 実行後に予約をクリア
+    }
+    if (queuedBGMChange && typeof playBGM === 'function') {
+        console.log(`Executing queued BGM change: id=${queuedBGMChange.id}`);
+        currentStageBgmId = queuedBGMChange.id; // ステージBGMを永続的に変更
+        playBGM(queuedBGMChange.id, queuedBGMChange.loop);
+        queuedBGMChange = null; // 実行後に予約をクリア
     }
 
     // ゲームオーバーシナリオを閲覧済みとしてセーブデータに記録
@@ -837,35 +841,38 @@ function endScenario() {
     lastImage = null;
     activePortraits = []; // 立ち絵情報をクリア
 
-    // ★★★ ここからが修正箇所 ★★★
-    // --- 状態遷移の分岐処理（優先順位を修正） ---
-    if (window.transitionToResultAfterScenario) {
-        // 最優先：リザルト画面へ遷移するフラグが立っている場合
-        window.transitionToResultAfterScenario = false;
-        setGameState('result');
-    } 
-    else if (endedEventType === 'stageStart') {
-        // 次に優先：ステージ開始シナリオが終わった場合
-        setGameState('playing');
-    }
-    else if (originalPreviousGameState === 'characterSelect' || originalPreviousGameState === 'characterSelect_fr') {
-        // キャラクター選択後にゲームを開始する場合
-        setGameState('playing');
-    }
-    else if (originalPreviousGameState === 'playing' || originalPreviousGameState === 'boss') {
-        // ポーズなどからゲームに復帰する場合
-        setGameState(originalPreviousGameState);
-    } 
-    else if (originalPreviousGameState === 'recall') {
-        // 回想から戻る場合
+    // 1. 最優先で「回想モードからの再生だったか」を確認します。
+    //    そうであれば、必ず回想モードの画面に戻します。
+
+    if (originalPreviousGameState === 'recall') {
         setGameState('recall');
     } 
+    // 2. 回想モードからでなければ、次に「ゲーム本編でのゲームオーバーか」を確認します。
     else if (endedEventType === 'gameOver') {
-        // ゲームオーバーシナリオ後
         setGameState('gameOver'); 
+    } 
+
+
+    // 3. 以降は、既存の条件分岐をそのまま続けます。
+    else if (nextStageAvailable) {
+        // 最優先：次のステージへ進むフラグが立っている場合
+        nextStageAvailable = false; // フラグを消費
+        setGameState('playing');
     }
-    else {
-        // 上記のいずれにも当てはまらない場合（安全策）
+    else if (window.transitionToResultAfterScenario) {
+        // 次に優先：通常クリア後にリザルト画面へ遷移する場合
+        window.transitionToResultAfterScenario = false;
+        setGameState('result');
+    }
+    else if (window.transitionToResultAfterScenario && (endedEventType === 'stageClear') && 
+               (originalPreviousGameState === 'playing' || originalPreviousGameState === 'boss')) {
+        window.transitionToResultAfterScenario = false;
+        setGameState('result');
+    } else if (originalPreviousGameState === 'characterSelect' && endedEventType === 'stageStart') {
+        setGameState('playing');
+    } else if (originalPreviousGameState === 'playing' || originalPreviousGameState === 'boss') {
+        setGameState(originalPreviousGameState);
+    } else {
         backToTitle();
     }
 }

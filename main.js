@@ -1,62 +1,146 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, screen } = require('electron');
 const path = require('path');
-const chokidar = require('chokidar');
 const fs = require('fs').promises;
+const JSON5 = require('json5');
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+let mainWindow;
 
 function createWindow() {
-    const win = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 1284,
-        height: 768,
+        height: 750,
         webPreferences: {
-            nodeIntegration: false, // Disable nodeIntegration for security
+            nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+                        // ★★★ ESCキーによるポインターロック解除を無効化するオプション ★★★
+            escExitPointerLock: false
         }
     });
 
-    win.loadFile('index.html');
-    win.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.setMenu(null);
+    mainWindow.loadFile('index.html');
 
-    const watcher = chokidar.watch([
-        path.join(__dirname, 'index.html'),
-        path.join(__dirname, 'portrait.js'),
-        path.join(__dirname, 'character&upgrades.js'),
-        path.join(__dirname, 'stages.js'),
-        path.join(__dirname, 'game.js'),
-        path.join(__dirname, 'player.js'),
-        path.join(__dirname, 'ui.js'),
-        path.join(__dirname, 'scenario.js'), 
-        path.join(__dirname, 'units.js'),
-        path.join(__dirname, 'assets', 'images', '*.png')
-    ], {
-        persistent: true
+    if (isDev) {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
+    
+    // フォーカスイベントの通知は、レンダラー側でカーソルを再設定するために有用なので残します
+    mainWindow.on('focus', () => {
+        if (mainWindow) {
+            mainWindow.webContents.send('window-focused');
+        }
     });
-
-    watcher.on('change', (filePath) => {
-        console.log(`File changed: ${filePath}`);
-        win.reload();
+    mainWindow.on('blur', () => {
+        if (mainWindow) {
+            mainWindow.webContents.send('window-blurred');
+        }
+    });
+    
+    mainWindow.on('closed', () => {
+        mainWindow = null;
     });
 }
 
-// Initialize save file path
-const saveFilePath = path.join(__dirname, 'saveData.json'); //const saveFilePath = path.join(app.getPath('userData'), 'saveData.json');
+// フルスクリーン切り替え（変更なし）
+ipcMain.on('toggle-fullscreen', (event) => {
+    if (mainWindow) {
+        const isFullScreen = mainWindow.isFullScreen();
+        mainWindow.setFullScreen(!isFullScreen);
+    }
+});
 
-// IPC handlers for save/load
+ipcMain.on('quit-game', () => {
+    app.quit();
+});
+
+/* 
+// --- 既存のAPIハンドラ（変更なし） ---
+ipcMain.handle('get-cursor-screen-point', () => {
+    return screen.getCursorScreenPoint();
+});
+ipcMain.handle('get-window-bounds', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? win.getContentBounds() : null;
+});
+*/
+
+// --- ファイル読み書き処理（変更なし） ---
+ipcMain.handle('load-json5-file', async (event, filePath) => {
+  try {
+    const fullPath = path.join(__dirname, filePath);
+    const fileContent = await fs.readFile(fullPath, 'utf8');
+    return JSON5.parse(fileContent);
+  } catch (error) {
+    console.error(`[Main Process] Failed to read or parse JSON5 file: ${filePath}`, error);
+    return null;
+  }
+});
+ipcMain.handle('load-upgrade-descriptions', async () => {
+    const filePath = path.join(__dirname, 'descriptions.json5'); 
+    try {
+        const fileContent = await fs.readFile(filePath, 'utf8');
+        return JSON5.parse(fileContent);
+    } catch (error) {
+        console.error(`[Main Process] Failed to load descriptions: ${filePath}`, error);
+        return {};
+    }
+});
+const saveFilePath = path.join(__dirname, 'saveData.json');
+
 ipcMain.handle('load-save-data', async () => {
     try {
         const data = await fs.readFile(saveFilePath, 'utf8');
-        return JSON.parse(data);
+        const saveData = JSON.parse(data);
+
+        // ★★★ 下位互換性のための処理 ★★★
+        
+        // 'stagesUnlocked' が存在しない場合、初期値を設定
+        if (!saveData.stagesUnlocked) {
+            saveData.stagesUnlocked = [1]; 
+        }
+
+        // 'options' が存在しない場合、初期値を設定
+        if (!saveData.options) {
+            saveData.options = {
+                sfxVolume: 0.5,
+                bgmVolume: 0.5,
+                enableMouseCorrection: true
+            };
+        }
+
+        return saveData;
+
     } catch (err) {
         if (err.code === 'ENOENT') {
-            // Create empty save file if it doesn't exist
-            const defaultData = { characters: {} };
+            // ★ 新規セーブデータ作成時のデフォルト値を修正 ★
+            const defaultData = { 
+                characters: {},
+                stagesUnlocked: [1],
+                options: {
+                    sfxVolume: 0.5,
+                    bgmVolume: 0.5,
+                    enableMouseCorrection: true
+                }
+            };
             await fs.writeFile(saveFilePath, JSON.stringify(defaultData, null, 2));
             return defaultData;
         }
         console.error('Failed to load save data:', err);
-        return { characters: {} };
+        return { 
+            characters: {},
+            stagesUnlocked: [1],
+            options: { // エラー時もデフォルト値を返す
+                sfxVolume: 0.5,
+                bgmVolume: 0.5,
+                enableMouseCorrection: true
+            }
+        };
     }
 });
+
 
 ipcMain.handle('save-data', async (event, data) => {
     try {
@@ -69,6 +153,8 @@ ipcMain.handle('save-data', async (event, data) => {
     }
 });
 
+
+// --- アプリケーションのライフサイクル ---
 app.whenReady().then(() => {
     createWindow();
     app.on('activate', () => {

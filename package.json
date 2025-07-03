@@ -1,17 +1,59 @@
 {
   "name": "sts-game",
   "version": "1.0.0",
-  "description": "Electron-based game",
+  "description": "A simple game",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "author": "ESA",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^29.1.5",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yourname.sts-game",
+    "productName": "STS(仮)",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "game.js",
+      "player.js",
+      "ui.js",
+      "units.js",
+      "scenario.js",
+      "portrait.js",
+      "character&upgrades.js",
+      "effects.js",
+      "stages.js",
+      "p5.min.js",
+      "p5.sound.min.js",
+      "scenario.json5",
+      "descriptions.json5",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icons/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icons/icon.png"
+    }
   },
   "dependencies": {
-    "chokidar": "^3.6.0"
-  },
-  "devDependencies": {
-    "electron": "^36.3.2"
-  },
-  "author": "Your Name",
-  "license": "MIT"
+    "apng-js": "^1.1.5",
+    "json5": "^2.2.3"
+  }
 }

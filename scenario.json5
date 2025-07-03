@@ -1,0 +1,510 @@
+{
+  events: {
+    /*
+     * ゲームオーバー時のシナリオ定義
+     * キャラクターごと、さらに特定の敵(species)にやられた場合で分岐
+     */
+    gameOver: {
+      ANNA: {
+        // ANNAのデフォルトゲームオーバー
+        default: {
+          thumbnail: 'assets/thumbnails/anna_go.jpg',
+          steps: [
+            { "type": "playBGM", "id": 7, "loop": true },
+            { type: 'image', path: 'assets/images/anna_go.png', duration: 3500, effect: 'flash' },
+            { type: 'text',speaker: 'アンナ', content: 'あぁっ!もう我慢できない!!', duration: 2000 },
+            { type: 'text', content: '理性の限界に達したアンナはその場で自慰行為を始める!<br>それは目の前の敵を誘う様でもあった!', duration: 3000 },
+            { type: 'text',speaker: 'アンナ', content: 'ひぁっ♡誰か!誰か私を滅茶苦茶に犯してぇぇぇ!!<br>', duration: 2000 },
+                        { type: 'text', content: 'その叫びを聞いたか聞かぬか、魔物達は容赦なく彼女へと殺到する。<br>破滅の如き悦楽の予感が彼女の脳裏に去来する。', duration: 3000 },
+            { type: 'text', content: '精液を注ぎ込まれて栄養を得る。それは淫魔の生態そのものであった<br>アンナはその宿命を渇望と共に迎え入れ、完全な淫魔と化した…', duration: 3000 },
+          ],
+        },
+        // 'tentacle' 種の敵にやられた場合
+        tentacle: {
+          thumbnail: 'assets/thumbnails/anna_tentacle_go.jpg',
+          steps: [
+            { "type": "playBGM", "id": 7, "loop": true },
+            { type: 'image', path: 'assets/images/anna_tentacle_go.png', duration: 3500, effect: 'flash' },
+            { type: 'text',speaker: 'アンナ', content: 'やぁぁっ♡そんなっ♡大きいのぉっ♡', duration: 2000 },
+            { type: 'text', content: 'アンナは触手に翻弄され、絡め取られ、穴に容赦なく侵入される。<br>淫液にまみれた触手は人間を狂わせ、淫魔も虜にする。', duration: 3000 },
+            { type: 'text', content: '触手はアンナの体内に卵を送り込み、繁殖する。<br>そして生れ出た触手はいずれ彼女から這い出て新たな獲物を探す<br>', duration: 3000 },
+            { type: 'text', content: '並の生物であればそれは死に至る行為である。<br>だが、不死の肉体を持つ淫魔は絶好の母体であった。', duration: 3000 },
+            { type: 'text',speaker: 'アンナ', content: 'あぁっ♡もうダメぇ♡私…私…あぶっ!……♡…♡…!!', duration: 2000 },
+            { type: 'text', content: '注ぎ込まれる魔力と命。<br>その奇妙な共生関係にアンナは溺れて行った…', duration: 3000 },
+          ],
+        },
+        slime: {
+          thumbnail: 'assets/thumbnails/anna_slime_go.jpg',
+         steps: [
+                     { type: 'image', path: 'assets/images/anna_slime_go.png', duration: 3200, effect: 'none' },
+            { type: 'text',speaker: 'アンナ', content: 'だっ駄目っ!体が動かない…あぅっ♡', duration: 2000 },
+            { type: 'text', content: 'スライムの大軍はアンナを絡め取り、彼女を自分達の中に沈めた。<br>スライムのが彼女の衣服を融かし、淫らな雌へと変えて行く。<br>やがて彼女の穴と言う穴からスライムは侵入するだろう。', duration: 3000 },
+                        { type: 'text',speaker: 'アンナ', content: 'おっおっおっ…♡あぁぁぁぁぁ………♡', duration: 2000 },
+            { type: 'text', content: 'スライムの体液に漬けられたアンナは思考を放棄した。<br>自分も又スライムになったかのように、本能のままスライムの中に溺れて行った…', duration: 3000 },
+          ],
+        },
+      
+              Renate: {
+          thumbnail: 'assets/thumbnails/anna_renate_go.jpg',
+          steps: [
+          {type: 'text',speaker: 'アンナ',content: 'あぁっ!駄目ぇ!',characterImage: 'assets/images/portraits/anna_low.png',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, },
+          {type: 'text',speaker: 'レナーテ',content: 'そう怖がることはありません。すぐに私達の姉妹になれますから…♡',characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  },
+            { type: 'text', content: 'レナーテの爪先がアンナの中に入り込んでい<br>そしてレナーテの魔力が、ハーピィの因子が体内に蕩け始める…', duration: 2200 },
+             {type: 'text',speaker: 'アンナ',content: 'やぁっ♡熱いっ♡あぁぁぁぁぁぁん♡',characterImage: 'assets/images/portraits/anna_low.png',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, },
+              {type: 'text',speaker: 'アンナ',content: '…あはぁ♡これが私…?',characterImage: 'assets/images/portraits/anna_harpy.png',characterPosition: 4,characterFlip: 0,characterAppear: 1, dimOthers: 1, },
+              {type: 'text',speaker: 'レナーテ',content: '思った通りです。貴方はハーピィ淫魔として生まれ変わりました。',characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  }, 
+              {type: 'text',speaker: 'アンナ',content: '…体が軽いわ。頭もスッキリ。<br>なんだか今までの悩みなんかどうでもよくなっちゃったわ。',characterImage: 'assets/images/portraits/anna_harpy.png',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, },
+              {type: 'text',speaker: 'レナーテ',content: 'でしょう?貴方には私達の姉妹に加わってもらいます。<br>貴方は新しい四女です。宜しくお願いしますね。お姉さん。',characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  }, 
+              {type: 'text',speaker: 'アンナ',content: '私がお姉さん…?貴方が先に姉妹になっているのに?',characterImage: 'assets/images/portraits/anna_harpy.png',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, },
+              {type: 'text',speaker: 'レナーテ',content: '私は末妹が良いんです。',characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  }, 
+              {type: 'text',speaker: 'アンナ',content: 'まあ良いわ。これからは私がお姉さんになってあげる。ドンドン頼って良いわよ♡',characterImage: 'assets/images/portraits/anna_harpy.png',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, },
+            { type: 'image', path: 'assets/images/anna_renate_go.png', duration: 3200, effect: 'none' },
+            { type: 'text', content: 'そして彼女はハーピィ姉妹の一員として人間達を相手に好き勝手暴れまわるようになった…', duration: 2200 },
+          ],
+        },
+      },
+      TRACY: {
+        // TRACYのデフォルトゲームオーバー
+        default: {
+          thumbnail: 'assets/thumbnails/tracy_go.jpg',
+          steps: [
+            { type: 'text', content: '仮文書', duration: 3000 },
+            { type: 'image', path: 'assets/images/tracy_go.png', duration: 3500, effect: 'flash' },
+            { type: 'text', content: '仮文書.', duration: 2000 },
+          ],
+        },
+      },
+    },
+
+
+
+
+    // --- ステージ進行中のシナリオ ---
+    stageProgress: {
+      ANNA: {
+        '1': { // ステージID "1"
+          start: {
+            steps: [
+      { type: 'image', path: 'assets/images/anna_stage1_start.png', duration: 3500, effect: 'none' },
+              { type: 'text', content: 'あらすじ', duration: 3000 },
+              { type: 'text', content: '淫魔の軍勢に敗れたアンナは淫魔化し、人類の敵となった。<br>しかし、淫魔の本能に抗い奴隷たちの精液による魔力吸収を拒否した<br>アンナはボスが用意した闘技場に放り込まれる事となった!', duration: 3000 },
+              { type: 'text', content: '｢男を使った魔力補充を拒否するのであれば<br>あの怪生物達を倒して魔力を得なさい。｣', duration: 3000 },
+              { type: 'text', content: '怪生物が襲い掛かる!', duration: 3000 },           
+              { type: 'playBGM', id: 3, loop: true },
+            ]
+          },
+          // 増援出現時のシナリオ
+          middle1: {
+            trigger: 'REINFORCEMENT_C_LV4', // このトリガーIDは stages.js と対応
+            steps:[
+              {
+                type: 'text',
+                speaker: 'ANNA',
+                content: '気持ち悪い生き物ばっかり…!',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 1,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+              },              {
+                type: 'text',
+                speaker: 'ANNA',
+                content: 'ふん、いいわ。全て焼き尽くしてあげる!!',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+              }
+            ],
+          },
+          // ボス出現時のシナリオ
+          middle2: {
+            trigger: 'BOSS_Z_APPEAR',
+            steps: [{
+                type: 'text',
+                speaker: 'レナーテ',
+                content: 'おやおや、イキの良い女の子ではありませんか。',
+                characterImage: 'RENATE',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '>=',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+},
+{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'あなたが試験官役かしら。魔力の吸収はもう十分でしょう?さっさとこんな茶番終わらせなさい。',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '>=',value: 60,},
+},
+{
+                type: 'text',
+                speaker: 'レナーテ',
+                content: '私はレナーテです、アンナさん。<br>まあそう焦らないでください。どれだけ強くなったか確認するのも私の仕事ですから。',
+                characterImage: 'RENATE',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '>=',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+},
+{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'つまりぶっ飛ばせばいいって事ね。',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '>=',value: 60,},
+},
+{
+                type: 'text',
+                speaker: 'レナーテ',
+                content: 'ですが只戦うのも面白くありません。\n私が勝ったら貴方には少し付き合ってもらいますよ。',
+                characterImage: 'RENATE',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '>=',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+  },
+  {
+                type: 'text',
+                speaker: 'アンナ',
+                content: '上等!その誰かさんに似て生意気そうな面を叩きのめしてやるわ!!',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)}
+                condition: {type: 'playerStat',stat: 'hpPercentage',operator: '>=',value: 60,},
+                },
+// HPが60%未満の時に表示されるセリフ
+{
+                type: 'text',
+                speaker: 'レナーテ',
+                content: 'おやおや、もう既に気持ち良くなっていますね?',
+                characterImage: 'RENATE',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 1,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 1,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '<',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+},{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'ハァ…ハァ…私を笑いものにしようっての?',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60,},
+},
+{
+                type: 'text',
+                speaker: 'レナーテ',
+                content: 'そんなことはありませんよ。\n性欲に流されないその理性に感服しているだけです。',
+                characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  
+  condition: { type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60 },
+},
+{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'ならとっとと終わらせなさい…!さもないとぶっ飛ばすわよ!!',
+                characterImage: 'player',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, 
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60,},
+},
+{
+                type: 'text',
+                speaker: 'レナーテ',
+                content: 'どちらにせよ私を倒さなくては終わりませんよ。\nですがもし負けたら…貴方を頂いて差し上げましょう',
+                characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  
+  condition: { type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60 },
+},
+{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'アンタにもモンスター共にも私の純潔を渡すつもりなんて無い!!',
+                characterImage: 'player',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, 
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60,},
+},
+// 1面ボスBGMの再生
+ //           { "type": "changeBGM", "id": 9, "loop": true },
+],
+          },
+ //         middle3: {
+ //           trigger: 'BOSS_Z_DEFEATED',
+//            steps: [{ type: 'text', content: 'アンナ：やった！ボスを倒したわ！', duration: 3000 }],
+//          },
+          objectivesMet: {
+            steps: [
+                {type: 'text',speaker: 'アンナ',content: 'これで終わりよ!これで終わり!',characterImage: 'player', characterPosition: 4, characterFlip: 0, characterAppear: 1,dimOthers: 1, },
+                { type: 'text',speaker: 'レナーテ',content: '残念です…貴方なら良いハーピィになれると思ったんですが…',characterImage: 'RENATE',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  },
+                {type: 'text',speaker: 'アンナ',content: 'ブルシット!あんなアッパラパーで能天気な生き物になんて願い下げよ!',characterImage: 'player', characterPosition: 4, characterFlip: 0, characterAppear: 1,dimOthers: 1, },
+                 { type: 'text', content: '離脱条件を満たしました。Gキーで脱出が出来ます。', duration: 3000 },
+          ],
+          },
+          clear: {
+            steps: [{ type: 'text', content:'ステージクリア!', duration: 3000 }],
+          }
+        },
+        '2': { // ステージID "1"
+          start: {
+            steps: [
+      { type: 'image', path: 'assets/images/anna_stage1_start.png', duration: 3500, effect: 'none' },
+              { type: 'text', content: 'あらすじ', duration: 3000 },
+              { type: 'text', content: '淫魔として力を得たアンナは作戦に駆り出されることとなった。<br>遠路遥々辿り着いた先は極寒の雪山。彼女に課された任務は山中のモンスターを制圧し、支配下に置く事であった…!', duration: 3000 },
+              { type: 'text', content: '｢アレは必ずここに来ます。それまでに準備を済ませましょう。<br>私たちは山道を進みます。ご武運を。｣', duration: 3000 },
+              { type: 'playBGM', id: 3, loop: true },
+            ]
+          },
+          // 増援出現時のシナリオ
+          middle1: {
+            trigger: 'REINFORCEMENT_C_LV4', // このトリガーIDは stages.js と対応
+            steps:[
+              {
+                type: 'text',
+                speaker: 'ANNA',
+                content: '気持ち悪い生き物ばっかり…!',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 1,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+              },              {
+                type: 'text',
+                speaker: 'ANNA',
+                content: 'ふん、いいわ。全て焼き尽くしてあげる!!',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+              }
+            ],
+          },
+          // ボス出現時のシナリオ
+          middle2: {
+            trigger: 'BOSS_Z_APPEAR',
+            steps: [{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'ようやく話のできそうな奴が来たわね。',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 1,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '>=',value: 60,},
+},{
+                type: 'text',
+                speaker: '雪女',
+                content: '獣どもが騒がしいと思えば…なるほど、魔性共か。人の子とはまた違う、その淀んだ気配…<br>わらわの白銀の世界に、何の用があって足を踏み入れた?',
+                characterImage: 'snowgirl',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 1,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '>=',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+},
+{
+                type: 'text',
+                speaker: 'アンナ',
+                content: '人間との戦いの為に此処を頂くわ。<br>アンタにも協力してもらうわね。嫌とは言わせない。',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '>=',value: 60,},
+},
+{
+                type: 'text',
+                speaker: '雪女',
+                content: '痴れ者め。その身をわきまえぬ不敬、命で償う覚悟があってのことじゃろうな？<br>その足跡が己の墓標となることを、このわらわが直々に教えてやろうぞ!',
+                characterImage: 'snowgirl',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '>=',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+},
+// HPが60%未満の時に表示されるセリフ
+{
+                type: 'text',
+                speaker: '雪女',
+                content: '魔性めが。ここがわらわの領域と知って瘴気をまき散らすか。',
+                characterImage: 'snowgirl',
+                characterPosition: 2, // 立ち絵の表示位置
+                characterFlip: 1,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 1,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {
+    type: 'playerStat',      // 条件のタイプ（プレイヤーのステータス）
+    stat: 'hpPercentage',    // 評価するステータス（HPの割合）
+    operator: '<',          // 比較演算子 (>=, >, <, <=, ==, !=)
+    value: 60,               // 比較する値 (パーセント)
+  },
+},{
+                type: 'text',
+                speaker: 'アンナ',
+                content: 'それが何だってのよ。アンタにも淫魔になってもらうわよ。',
+                characterImage: 'player',
+                characterPosition: 4, // 立ち絵の表示位置
+                characterFlip: 0,     // 左右反転 (0:なし, 1:あり)
+                characterAppear: 0,   // 登場演出 (0:即時, 1:シルエット, 2:スライドイン)
+                dimOthers: 1,         // 発言者以外を暗くするか (0:なし, 1:あり)
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60,},
+},
+{
+                type: 'text',
+                speaker: '雪女',
+                content: 'お主元は人か、哀れなものよ。<br>人の身から魔性の奴隷と化した事を恥じらう矜持も失ったとは。<br>わらわなら自らの首を落としておるわ。',
+                characterImage: 'snowgirl',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  
+  condition: { type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60 },
+},
+{
+                type: 'text',
+                speaker: 'アンナ',
+                content: '…楽しみが増えたわ。アンタが淫魔になる瞬間をじっくり観察してあげる。',
+                characterImage: 'player',characterPosition: 4,characterFlip: 0,characterAppear: 0, dimOthers: 1, 
+  condition: {type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60,},
+},
+{
+                type: 'text',
+                speaker: '雪女',
+                content: 'よく言うた。その増上慢、わらわ手ずから砕いて見せようぞ。<br>人の傲慢を刈り取るのも久方ぶり故な。良き声で鳴くと良いわ。',
+                characterImage: 'snowgirl',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  
+  condition: { type: 'playerStat',stat: 'hpPercentage',operator: '<',value: 60 },
+},
+// 1面ボスBGMの再生
+            { "type": "changeBGM", "id": 9, "loop": true },
+],
+          },
+ //         middle3: {
+ //           trigger: 'BOSS_Z_DEFEATED',
+//            steps: [{ type: 'text', content: 'アンナ：やった！ボスを倒したわ！', duration: 3000 }],
+//          },
+          objectivesMet: {
+            steps: [
+                {type: 'text',speaker: 'アンナ',content: '私の勝ちね',characterImage: 'player', characterPosition: 4, characterFlip: 0, characterAppear: 1,dimOthers: 1, },
+                { type: 'text',speaker: '雪女',content: 'ぐぅ…!なんという無様。このような下賎の輩に後れを取るなど…!<br>ええい!寄るでない!汚らわしいその妖気!わらわに触れさせるでない!!',characterImage: 'snowgirl',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  },
+                {type: 'text',speaker: 'アンナ',content: '同感ね。私もアンタなんか触れたくも無いわ。コレと仲良くしてなさい。',characterImage: 'player', characterPosition: 3, characterFlip: 0, characterAppear: 1,dimOthers: 1, },
+                { type: 'text',speaker: '雪女',content: 'ひっ…!なんぞこの蛸のような…!?やっ止めろ!わらわの服の中にっあひぃぃぃぃ!?!?',characterImage: 'snowgirl',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  },          
+                {type: 'text',speaker: 'アンナ',content: 'その触手はアンタが気に入ったみたい。良かったわね。<br>気が済んだらあなたの同胞に伝えてもらえる?私達に協力しなさいって。。',characterImage: 'player', characterPosition: 4, characterFlip: 0, characterAppear: 1,dimOthers: 1, },
+                { type: 'text',speaker: '雪女',content: 'ほぁぁぁぁぁぁぁぁ♡♡♡',characterImage: 'snowgirl',characterPosition: 2,characterFlip: 1, characterAppear: 0,  dimOthers: 1,  },          
+                { type: 'text', content: '離脱条件を満たしました。Gキーで脱出が出来ます。', duration: 3000 },
+          ],
+          },
+          clear: {
+            steps: [{ type: 'text', content:'ステージクリア!', duration: 3000 }],
+          }
+        },
+        'fr': {
+          // ★★★ "start" の形式を { "steps": [...] } に修正 ★★★
+          start: {
+             steps: [
+              { type: 'text', content: 'Anna prepares for the battle in Stage 1.', duration: 3000 },
+              { type: 'image', path: 'assets/images/anna_stage1_start.png', duration: 3500, effect: 'none' },
+              { type: 'text', content: 'The enemy forces are approaching!', duration: 2000 },
+            ]
+          },
+          middle_rush1: {
+            "trigger": "FRONTLINE_RUSH_1",
+            "steps": []
+          },
+          "clear": {
+            "steps": []
+          }
+        }
+      }, // ★★★ ANNAオブジェクトを閉じる括弧の位置を修正 ★★★
+
+      // ★★★ TRACYオブジェクトをstageProgressの中に移動 ★★★
+      TRACY: {
+        '1': {
+          start: {
+            steps: [
+              { type: 'text', content: 'トレーシーに現在シナリオやシュートシーンは有りません。', duration: 3000 },
+              { type: 'image', path: 'assets/images/tracy_stage1_start.png', duration: 3500, effect: 'none' },
+              { type: 'text', content: 'The enemy forces are approaching!', duration: 2000 },
+            ]
+          },
+        },
+        "fr": {
+          "start": {
+            "steps": [
+              { "type": "playBGM", "id": 3, "loop": true },
+              { "type": "text", "content": 'Tracy: "Time to move out!"', "duration": 2500 },
+              { "type": "playSE", "id": 1 },
+            ]
+          },
+        },
+      } // ★★★ TRACYオブジェクトの閉じ括弧を追加 ★★★
+    }     // ★★★ stageProgressオブジェクトの閉じ括弧をここに移動 ★★★
+  }, // eventsオブジェクトの閉じ括弧
+
+    //
+    //共通カットインイベント
+    //
+      "commonTriggers": [
+    {
+      "conditionType": "unitAppeared", // 条件タイプ：ユニット登場
+      "unitType": "Y_defeat",                 // 対象のユニットタイプ
+      "cutin": "random:snowgirl02:flashend",
+      "speech": "わらわの魂が穢され…あぁぁぁぁぁぁ♡♡♡", // 表示する科白
+      "color": "#ff11ff",  // 表示するカットイン
+      "oncePerStage": true             // 1ステージに1回だけ実行するか
+    },
+    {
+      "conditionType": "unitAppeared",
+      "unitType": "Y",
+      "cutin": "random:snowgirl01:fade",
+        "speech": "魂の凍る感覚を味あわせてやろうぞ", // 表示する科白
+  "color": "#FFD700",                      // 文字色（任意、デフォルトは白）
+  "fontSize": 28,                          // 文字サイズ（任意、デフォルトは24）
+  "fontType": "serif",                      // フォント（任意、デフォルトは'sans-serif'）
+      "oncePerStage": true
+    }
+    // 今後、他の共通トリガーをここに追加可能
+  ]
+}
+ // ルートオブジェクトの閉じ括弧
