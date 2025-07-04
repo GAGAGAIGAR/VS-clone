@@ -169,6 +169,28 @@ const unitTypes = {
         fly: true // ★ この行を追加
 
     },
+        I: {
+        hp: 1000,
+        speed: 0,
+        maxForce: 0,
+        weight: 5.0,
+        size: 40,
+        contactDamage: 0,
+        shootInterval: 0,
+        range: 0,
+        bulletSpeed: 0,
+        bulletDamage: 0,
+        lastShot: 0,
+        vectorUnder: false,
+        behaviorPattern: 'pattern1',
+        bulletPattern: null,
+        species: 'wall',
+        appearancePattern: '1',
+        deathEffectId: 1,
+        spawnPriority: 0,
+        affiliation: 'enemy',
+        despawnTime: 5000
+    },
     Z: {
         hp: 500,
         speed: 2,
@@ -199,11 +221,12 @@ const unitTypes = {
         shootInterval: 0,
         range: 400,
         bulletSpeed: 5,
+
         bulletDamage: 25,
         lastShot: 0,
         vectorUnder: false,
-        behaviorPattern: 'pattern3',
-        bulletPattern: '3',
+        behaviorPattern: 'patternY',
+        bulletPattern: '1',
         isBoss: true,
         species: 'Renate',
         appearancePattern: 'pattern2',
@@ -223,7 +246,7 @@ const unitTypes = {
         range: 0,
         behaviorPattern: 'patternGuard', // その場に留まるAIを流用
         affiliation: 'none', // 敵でも味方でもない
-        despawnTime: 10000,
+        despawnTime: 10000,//  // 10秒で消滅
         stateEffect: 'heart', // ★ 特殊ステートの初期値
                webm: {
             path: 'assets/webm/snowgirl-tentacle.webm'//,
@@ -426,7 +449,9 @@ const bulletPatterns = {
     1: singleShot,
     2: threeWayShot,
     3: burstShot,
-    bossDecelerating: bossDeceleratingShot // ★★★ 新しいパターンを追加 ★★★
+    bossDecelerating: bossDeceleratingShot, // ★★★ 新しいパターンを追加 ★★★
+    guided: guidedShot
+    
 };
 
 function singleShot(unit, baseAngle) {
@@ -492,6 +517,20 @@ function burstShot(unit, baseAngle) {
         unit.burstCount = 0;
         unit.burstLastShotTime = null;
     }
+}
+
+function guidedShot(unit, baseAngle) {
+    spawnProjectile({
+        pos: unit.pos.copy(),
+        vel: p5.Vector.fromAngle(baseAngle).mult(3), // 弾速を3に設定
+        damage: unit.bulletDamage,
+        sourceAffiliation: unit.affiliation,
+        range: unit.range,
+        sourceUnitType: unit.type,
+        homing: true,
+        homingStrength: 0.05,
+        color: color(128, 0, 128) // 弾の色を紫に設定
+    });
 }
 
 function shootBullet(unit, baseAngle, patternKey = null) {
@@ -1064,7 +1103,14 @@ function shakeAndCharge(unit, finalSpeed) {
             const SHOOT_INTERVAL = 80;
             if (unit.burstCount < SHOOT_COUNT && millis() - unit.stateTimer > unit.burstCount * SHOOT_INTERVAL) {
                 const target = findClosestTarget(unit);
-                const baseAngle = target ? atan2(target.pos.y - unit.pos.y, target.pos.x - unit.pos.x) : random(TWO_PI);
+                const baseAngle = target
+                    ? atan2(target.pos.y - unit.pos.y, target.pos.x - unit.pos.x)
+                    : random(TWO_PI);
+
+                // --- 向きをターゲット方向に合わせる ---
+                if (target && !unitTypes[unit.type]?.vectorUnder) {
+                    unit.facingDirection = cos(baseAngle) >= 0 ? 1 : -1;
+                }
                 const spread = radians(20);
                 const finalAngle = baseAngle + random(-spread / 2, spread / 2);
                 shootBullet(unit, finalAngle, 'bossDecelerating');
@@ -1085,6 +1131,62 @@ function shakeAndCharge(unit, finalSpeed) {
             return unit.vel.copy().mult(-1).limit(unit.maxForce);
     }
     
+    return createVector(0, 0);
+}
+function behaviorY(unit, finalSpeed) {
+    // ユニットの現在の状態が未定義、または行動サイクル外の'approaching'であれば、
+    // 行動サイクルの起点である'patternA'に強制的に設定する
+    if (!unit.attackState || unit.attackState === 'approaching') {
+        unit.attackState = 'patternA';
+    }
+
+    switch (unit.attackState) {
+        case 'patternA': {
+            const target = player;
+            if (millis() - (unit.lastShot || 0) > 2000) {
+                shootBullet(unit, atan2(target.pos.y - unit.pos.y, target.pos.x - unit.pos.x));
+            }
+            const steer = moveDirectlyToTarget(unit, target, 1.0, finalSpeed);
+            if (p5.Vector.dist(unit.pos, player.pos) < 100) {
+                unit.attackState = 'startB';
+            }
+            return steer;
+        }
+        case 'startB': {
+            const dirAway = p5.Vector.sub(unit.pos, player.pos).setMag(200);
+            unit.jumpTarget = p5.Vector.add(player.pos, dirAway);
+            unit.attackState = 'movingB';
+            return createVector(0, 0);
+        }
+        case 'movingB': {
+            const steer = moveDirectlyToTarget(unit, { pos: unit.jumpTarget }, 4.0, finalSpeed);
+            if (p5.Vector.dist(unit.pos, unit.jumpTarget) < 10) {
+                unit.attackState = 'summon';
+                unit.stateTimer = millis();
+                unit.hasSummoned = false;
+            }
+            return steer;
+        }
+        case 'summon': {
+            if (!unit.hasSummoned) {
+                const dir = p5.Vector.sub(player.pos, unit.pos).normalize();
+                const spacing = 50;
+                for (let i = -1; i <= 1; i++) {
+                    const pos = p5.Vector.add(unit.pos, dir.copy().mult(spacing * (i + 2)));
+                    spawnUnitAt('I', pos);
+                }
+                const baseAngle = dir.heading();
+                shootBullet(unit, baseAngle + HALF_PI, 'guided');
+                shootBullet(unit, baseAngle - HALF_PI, 'guided');
+                unit.hasSummoned = true;
+                unit.stateTimer = millis();
+            }
+            if (millis() - unit.stateTimer > 3000) {
+                unit.attackState = 'patternA';
+            }
+            return createVector(0, 0);
+        }
+    }
     return createVector(0, 0);
 }
 
@@ -1115,7 +1217,8 @@ const behaviorPatterns = {
     'patternKnight': behaviorKnight,
     'patternGuard': behaviorGuard,
     'patternGuardAdvanced': behaviorGuardAdvanced,
-    'flyby': behaviorFlyby
+    'flyby': behaviorFlyby,
+    'patternY': behaviorY
 };
 
 

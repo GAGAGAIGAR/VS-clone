@@ -84,6 +84,10 @@ function canDamage(sourceAffiliation, targetAffiliation) {
         }
 
         p.pos.add(p.vel);
+                if (p.homing) {
+            const desired = p5.Vector.sub(player.pos, p.pos).setMag(p.vel.mag());
+            p.vel.lerp(desired, p.homingStrength || 0.05);
+        }
 
         const collision = getTerrainCollision(p.pos);
         if (collision && collision.shape.type !== 2) {
@@ -805,8 +809,10 @@ function drawUnitBullets() {
         translate(p.pos.x, p.pos.y);
         let angle = atan2(p.vel.y, p.vel.x) - PI / 2;
         rotate(angle);
-        
-        if (p.sourceUnitType === 'D' && p.shape === 'spindle') {
+
+        if (p.color) { // 弾にcolorプロパティがあれば
+    fill(p.color); // その色を使用する
+        }else if (p.sourceUnitType === 'D' && p.shape === 'spindle') {
             fill(0, 255, 255);
             noStroke();
             beginShape();
