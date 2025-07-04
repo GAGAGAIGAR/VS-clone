@@ -109,7 +109,7 @@ const stageConfigs = [
     maxPlayerLevel: 60,
 
     mapSize: { width: 3000, height: 2000 },
-    terrain: [
+terrain: [
   {
     "shape": "triangle",
     "type": 1,
@@ -129,6 +129,15 @@ const stageConfigs = [
     "y": 988.1844951103474,
     "w": 22.208201892744455,
     "h": 28.274894810659134
+  },
+  {
+    "shape": "rect",
+    "type": 1,
+    "rotation": 0,
+    "x": 1611.5457413249212,
+    "y": 908.6115007012622,
+    "w": 280.6309148264984,
+    "h": 147.4333800841514
   }
 ],
     unitTypes: (level) => level >= 10 ? ['E', 'F', 'G', 'H'] : level >= 7 ? ['E', 'F', 'G'] : level >= 4 ? ['E', 'F'] : ['F'],

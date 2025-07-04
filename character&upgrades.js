@@ -554,7 +554,13 @@ const expRequirements = [2, 4, 8, 16, 32, 64, 96, 128, 128, 128];
 function levelUp() {
     const config = getStageConfig(currentStage);
     const levelCap = config.levelCap || 25;
-
+    const maxPlayerLevel = config.maxPlayerLevel || 60;
+    // 最大レベルに達している場合は処理しない
+    if (playerStats.level >= maxPlayerLevel) {
+        playerStats.exp = playerStats.expToNext;
+        console.log(`最大レベル ${maxPlayerLevel} に到達`);
+        return;
+    }
     // 先にレベルを上げておく
     playerStats.level++;
     playerStats.exp = 0;

@@ -2,8 +2,10 @@ function updateEffects() {
     // --- 近接攻撃の当たり判定 ---
     for (let i = meleeAttacks.length - 1; i >= 0; i--) {
         let attack = meleeAttacks[i];
-        if (millis() - attack.time > attack.duration) { /* ... */ continue; }
-
+        if (millis() - attack.time > attack.duration) { 
+            meleeAttacks.splice(i, 1);
+            continue;
+        }
         const nearbyUnits = getUnitsInNeighborCells(attack.pos, u => !u.isDying && !attack.hitUnits.has(u));
         for (const u of nearbyUnits) {
             const j = units.indexOf(u);
@@ -253,14 +255,15 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                                     time: millis()
                                 });
                                 if (targetUnit.hp <= 0) {
-                                    handleUnitDeath(targetUnit, k);
+                                    // ★★★ 修正: 爆風キルもプレイヤー由来として扱う ★★★
+                                    handleUnitDeath(targetUnit, k, 'player_aoe');
                                 }
                             }
                         }
                     }
 
                     if (u.hp <= 0) {
-                        handleUnitDeath(u, j);
+                        handleUnitDeath(u, j, 'player'); // 直撃もプレイヤー由来
                         if (p.pierce <= 0) {
                            p.active = false;
                            break;
@@ -299,7 +302,7 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                 enemyUnit.hp -= playerStats.attack;
                 damagePopups.push({ pos: enemyUnit.pos.copy(), text: playerStats.attack.toFixed(0), time: millis() });
                 triggerAssaultArmor();
-                if (enemyUnit.hp <= 0) handleUnitDeath(enemyUnit, i);
+                if (enemyUnit.hp <= 0) handleUnitDeath(enemyUnit, i, 'player_skill');
             } else {
                 playerStats.hp -= damage;
                 playerStats.isFlashing = true;
@@ -381,7 +384,8 @@ function canDamage(sourceAffiliation, targetAffiliation) {
                 });
                 u.lastPoisonDamage = millis();
                 if (u.hp <= 0) {
-                    handleUnitDeath(u, j);
+                    // ★★★ 修正: 毒沼キルもプレイヤー由来として扱う ★★★
+                    handleUnitDeath(u, j, 'player_poison');
                 }
             }
         }
@@ -892,6 +896,7 @@ function updateAndDrawBounceOrbs() {
                         const { cameraX, cameraY } = getCameraPosition();
             const viewportWidth = 960;
             const viewportHeight = 720;
+            const screenCenter = createVector(cameraX + viewportWidth / 2, cameraY + viewportHeight / 2);
 
             const bounceCorrectionFactor = 0.2;
             let bounced = false;
@@ -1014,7 +1019,7 @@ function drawStateEffect(unit) {
             fill(255, 105, 180); // ピンク色
             textSize(24);
             textAlign(CENTER, CENTER);
-            text('♡', 0, -52);
+            text('♥', 0, -52);
             break;
 
         // --- 例2: 紫色のオーラ ---
@@ -1042,7 +1047,30 @@ function drawStateEffect(unit) {
     pop();
 }
 
-//地形当たり判定
+// ★★★ ここからが修正箇所です ★★★
+
+/**
+ * 点pが、v1, v2, v3で定義される三角形の内部にあるかどうかを判定する
+ * @param {p5.Vector} p - 判定する点
+ * @param {p5.Vector} a - 三角形の頂点1
+ * @param {p5.Vector} b - 三角形の頂点2
+ * @param {p5.Vector} c - 三角形の頂点3
+ * @returns {boolean} - 内部にあればtrue
+ */
+function isPointInTriangle(p, a, b, c) {
+    // 三角形の各辺と、点pの位置関係を計算
+    const d1 = (p.x - b.x) * (a.y - b.y) - (a.x - b.x) * (p.y - b.y);
+    const d2 = (p.x - c.x) * (b.y - c.y) - (b.x - c.x) * (p.y - c.y);
+    const d3 = (p.x - a.x) * (c.y - a.y) - (c.x - a.x) * (p.y - a.y);
+
+    const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    // 全ての辺に対して同じ側にあれば、点は三角形の内部
+    return !(hasNeg && hasPos);
+}
+
+
 function getTerrainCollision(pos, radius = 1) {
     const config = getStageConfig(currentStage);
     if (!config.terrain || config.terrain.length === 0) return null;
@@ -1052,60 +1080,83 @@ function getTerrainCollision(pos, radius = 1) {
 
         let collisionPoint = null;
         switch (shape.shape) {
-            case 'rect':
-                // 最も近い点を計算
+            case 'rect': {
                 const closestX = constrain(pos.x, shape.x, shape.x + shape.w);
                 const closestY = constrain(pos.y, shape.y, shape.y + shape.h);
                 if (dist(pos.x, pos.y, closestX, closestY) < radius) {
                     return { shape: shape, point: createVector(closestX, closestY) };
                 }
                 break;
-            case 'circle':
-                if (dist(pos.x, pos.y, shape.x, shape.y) < shape.r + radius) {
-                    // 円の中心からposへのベクトルを計算し、円周上の衝突点を求める
+            }
+            case 'circle': {
+                const MARGIN = 2; // ★ ご提案通り2pxのマージンを設定
+                if (dist(pos.x, pos.y, shape.x, shape.y) < shape.r + radius + MARGIN) {
                     const dir = p5.Vector.sub(pos, createVector(shape.x, shape.y)).normalize();
                     const pointOnEdge = createVector(shape.x, shape.y).add(dir.mult(shape.r));
                     return { shape: shape, point: pointOnEdge };
                 }
                 break;
-            case 'ellipse': // ★ 楕円の当たり判定を追加
-                // 楕円の公式 (x/rx)^2 + (y/ry)^2 < 1 を利用
+            }
+            case 'ellipse': {
+                 // ユニットの半径を考慮して、楕円の半径を内側に縮小して判定
+                const effectiveRx = shape.rx - radius;
+                const effectiveRy = shape.ry - radius;
+
+                if (effectiveRx > 0 && effectiveRy > 0) {
                 const dx = pos.x - shape.x;
                 const dy = pos.y - shape.y;
-                if ((dx * dx) / (shape.rx * shape.rx) + (dy * dy) / (shape.ry * shape.ry) < 1) {
-                     // 簡易的な衝突点として、中心からposへの方向にある楕円周上の点を返す
+                if ((dx * dx) / (effectiveRx * effectiveRx) + (dy * dy) / (effectiveRy * effectiveRy) < 1) {
                     const angle = atan2(dy, dx);
                     const pointOnEdge = createVector(
                         shape.x + shape.rx * cos(angle),
                         shape.y + shape.ry * sin(angle)
                     );
                     return { shape: shape, point: pointOnEdge };
+                    }
                 }
                 break;
+            }
+            case 'triangle': {
+                const MARGIN = 10; // ★ ご提案通りマージンを10pxに変更
+                const p = pos;
+                const v1 = createVector(shape.x1, shape.y1);
+                const v2 = createVector(shape.x2, shape.y2);
+                const v3 = createVector(shape.x3, shape.y3);
 
-            case 'triangle': // ★ 三角形の当たり判定を実装
-                const v1 = { x: shape.x1, y: shape.y1 };
-                const v2 = { x: shape.x2, y: shape.y2 };
-                const v3 = { x: shape.x3, y: shape.y3 };
-
-                const d1 = sign(pos, v1, v2);
-                const d2 = sign(pos, v2, v3);
-                const d3 = sign(pos, v3, v1);
-
-                const has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-                const has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-                // 全ての辺に対して同じ側にあれば、点は三角形の内部
-                if (!(has_neg && has_pos)) {
-                    // 衝突点は別途計算が必要だが、ここでは簡易的に重心を返す
-                    // getCollisionNormalで正確な辺を特定するため、ここではnullでも良い
-                    return { shape: shape, point: null };
+                // 1. まず、ユニットの中心が三角形の内部にあるかチェック
+                if (isPointInTriangle(p, v1, v2, v3)) {
+                     // 内部にある場合、最も近い辺上の点を衝突点として返す
+                     const p1 = getClosestPointOnSegment(p, v1, v2);
+                     const p2 = getClosestPointOnSegment(p, v2, v3);
+                     const p3 = getClosestPointOnSegment(p, v3, v1);
+                     const d1 = p5.Vector.dist(p, p1);
+                     const d2 = p5.Vector.dist(p, p2);
+                     const d3 = p5.Vector.dist(p, p3);
+                     if (d1 <= d2 && d1 <= d3) return { shape: shape, point: p1 };
+                     if (d2 <= d1 && d2 <= d3) return { shape: shape, point: p2 };
+                     return { shape: shape, point: p3 };
+                }
+                
+                // 2. 次に、ユニットの円が三角形のいずれかの辺に十分に近づいているかチェック
+                const pt1 = getClosestPointOnSegment(p, v1, v2);
+                if (p5.Vector.dist(p, pt1) < radius + MARGIN) {
+                    return { shape: shape, point: pt1 };
+                }
+                const pt2 = getClosestPointOnSegment(p, v2, v3);
+                if (p5.Vector.dist(p, pt2) < radius + MARGIN) {
+                    return { shape: shape, point: pt2 };
+                }
+                const pt3 = getClosestPointOnSegment(p, v3, v1);
+                if (p5.Vector.dist(p, pt3) < radius + MARGIN) {
+                    return { shape: shape, point: pt3 };
                 }
                 break;
+            }
         }
     }
     return null;
 }
+// ★★★ ここまでが修正箇所です ★★★
 
 // 点と線分上の最も近い点を計算するヘルパー関数
 function getClosestPointOnSegment(p, a, b) {

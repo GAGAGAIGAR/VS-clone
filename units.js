@@ -334,6 +334,15 @@ let grid = []; // 2次元配列としてグリッドを保持
 let gridCols;
 let gridRows;
 
+// ★★★ 修正: プレイヤー由来の攻撃種別をまとめたリストを定義 ★★★
+const PLAYER_SOURCED_ATTACKS = [
+    'player',
+    'player_aoe',
+    'player_poison',
+    'player_skill',
+    'chain_explosion'
+];
+
 function initializeGrid() {
     const mapSize = getStageConfig(currentStage).mapSize;
     gridCols = ceil(mapSize.width / GRID_CELL_SIZE);
@@ -1134,80 +1143,88 @@ function getBehaviorForce(unit, finalSpeed) {
     }
 }
 
-
 /**
  * 周囲の他のユニットとの衝突を避けるための「力（セパレーションフォース）」を計算して返す
  * @param {object} unit - 対象ユニット
  * @returns {p5.Vector} - 計算された力のベクトル
  */
 function getSeparationForce(unit) {
-    // ★★★ 修正点: 衝突回避距離をユニット自身の大きさ（直径）に変更 ★★★
-    const desiredSeparation = unit.size;
-    let steer = createVector(0, 0);
-    let count = 0;
+    // この関数は新しいロジックでは使用されないため、中身を削除または関数自体を削除します。
+    // 今回は安全のため、空のベクトルを返すようにだけしておきます。
+    return createVector(0, 0);
+}
 
-    const { col, row } = getGridCoords(unit.pos);
-    for (let cOffset = -1; cOffset <= 1; cOffset++) {
-        for (let rOffset = -1; rOffset <= 1; rOffset++) {
-            const checkCol = col + cOffset;
-            const checkRow = row + rOffset;
-            if (checkCol < 0 || checkCol >= gridCols || checkRow < 0 || checkRow >= gridRows) continue;
+// ★★★ 新しく追加する、ユニットの重なりを解決する関数 ★★★
+/**
+ * 全ユニットの重なりをチェックし、位置を直接補正して解決する
+ */
+function resolveUnitOverlaps() {
+    const iterations = 3; // 複数回繰り返して安定させる
+    for (let iter = 0; iter < iterations; iter++) {
+        for (let i = 0; i < units.length; i++) {
+            for (let j = i + 1; j < units.length; j++) {
+                const unitA = units[i];
+                const unitB = units[j];
 
-            for (const other of grid[checkCol][checkRow]) {
-                if (other === unit) continue;
+                if (!unitA || !unitB || unitA.isDying || unitB.isDying || unitA.isAppearing || unitB.isAppearing) continue;
                 
-                let d = p5.Vector.dist(unit.pos, other.pos);
-                if ((d > 0) && (d < desiredSeparation)) {
-                    let diff = p5.Vector.sub(unit.pos, other.pos);
-                    diff.normalize();
-                    diff.div(d);
-                    steer.add(diff);
-                    count++;
+                const vec = p5.Vector.sub(unitA.pos, unitB.pos);
+                const distSq = vec.magSq();
+                const desiredDist = unitA.size / 2 + unitB.size / 2;
+
+                if (distSq > 0 && distSq < desiredDist * desiredDist) {
+                    const dist = sqrt(distSq);
+                    const overlap = (desiredDist - dist);
+                    const pushDirection = vec.div(dist); // 正規化された、BからAへのベクトル
+
+                    // ★★★ ここからが修正箇所 ★★★
+                    // 壁に面しているかどうかで押し出し方を変更
+                    const a_is_blocked = unitA.isAgainstWall || false;
+                    const b_is_blocked = unitB.isAgainstWall || false;
+
+                    if (a_is_blocked && b_is_blocked) {
+                        // 両方ブロックされている場合は何もしない
+                        continue;
+                    } else if (a_is_blocked) {
+                        // Aがブロックされているので、Bだけを強く押し出す
+                        unitB.pos.sub(pushDirection.copy().mult(overlap));
+                    } else if (b_is_blocked) {
+                        // Bがブロックされているので、Aだけを強く押し出す
+                    unitA.pos.add(pushDirection.copy().mult(overlap));
+                    } else {
+                        // どちらもブロックされていないので、半分ずつ押し出す
+                        const halfOverlap = overlap / 2;
+                        unitA.pos.add(pushDirection.copy().mult(halfOverlap));
+                        unitB.pos.sub(pushDirection.copy().mult(halfOverlap));
+                    }
                 }
             }
         }
     }
-    
-    if (count > 0) {
-        steer.div(count);
-    }
-
-    if (steer.mag() > 0) {
-        steer.normalize();
-        steer.mult(unit.speed);
-        // ★★★ 修正点: ステアリング計算(.sub(unit.vel))を削除 ★★★
-        // これにより、この力は単純な反発力となり、ユニットの現在の速度を無視して
-        // 直接的な押し出しのみを行うため、回転挙動が抑制されます。
-        const unitConfig = unitTypes[unit.type];
-        if (unitConfig && unitConfig.maxForce) {
-           steer.limit(unitConfig.maxForce);
-        }
-    }
-    return steer;
 }
-
 
 
 // ユニットの物理演算とアニメーション更新
 function updateUnits() {
-    const AI_UPDATE_INTERVAL = 6; // AIの意思決定を行うフレーム間隔
+    const AI_UPDATE_INTERVAL = 6;
 
+    // --- ステップ1: AIによる意思決定と、それに基づく移動 ---
     for (let i = units.length - 1; i >= 0; i--) {
         let unit = units[i];
         if (!unit || unitsToRemove.has(i)) continue;
         
         const unitConfig = unitTypes[unit.type];
-
-        // --- 時間経過による消滅処理 ---
+        
+        // ★★★ 修正点1: 自壊処理を handleUnitDeath の直接呼び出しに変更 ★★★
         if (unitConfig.despawnTime && millis() - (unit.spawnTime || 0) > unitConfig.despawnTime) {
-            unit.hp = 0;
+            handleUnitDeath(unit, i, 'despawn'); // 'despawn'という理由で死亡させる
+            continue; // このユニットの以降の処理をスキップ
         }
 
         if (unit.isDying) {
             updateDeathEffect(unit);
             continue;
         }
-
         if (unit.isAppearing) {
             const patternKey = unitTypes[unit.type]?.appearancePattern || '1';
             const appearanceUpdateFn = appearancePatterns[patternKey];
@@ -1216,12 +1233,11 @@ function updateUnits() {
             }
             continue;
         }
-        // --- 無敵状態の更新 ---
+        
         if (unit.isInvincible && millis() > (unit.invincibilityEndTime || 0)) {
             unit.isInvincible = false;
         }
 
-        // ユニットの最終的な移動速度を計算
         let finalSpeed = unit.speed;
         for (const zone of waterZones) {
             if (p5.Vector.dist(unit.pos, zone.pos) < zone.radius) {
@@ -1230,8 +1246,6 @@ function updateUnits() {
             }
         }
         
-
-        // --- AIの計算間引き処理 ---
         if (unit.aiUpdateCounter === undefined) {
             unit.aiUpdateCounter = floor(random(AI_UPDATE_INTERVAL)); 
             unit.frameBehaviorForce = createVector(0, 0); 
@@ -1243,48 +1257,30 @@ function updateUnits() {
             unit.frameBehaviorForce = totalSteeringImpulse.div(AI_UPDATE_INTERVAL);
         }
 
+        // --- 向きと移動ベクトルの決定 ---
         const behaviorForce = unit.frameBehaviorForce;
-        let separationForce = getSeparationForce(unit);
 
-        // --- 向きの決定 ---
         if (!unitConfig.vectorUnder) {
             if (abs(behaviorForce.x) > 0.01) {
                 unit.facingDirection = (behaviorForce.x > 0) ? 1 : -1;
             }
         }
         
-
-        // --- 力の合成と適用 ---
-        if (unitConfig.isBoss) {
-            separationForce.mult(0.1);
-        } else {
-            separationForce.mult(4.0);
-        }
-
-        const totalForce = createVector(0, 0);
-        totalForce.add(behaviorForce);
-        totalForce.add(separationForce);
-
+        // --- 移動ベクトルの更新 (挙動フォースのみを適用) ---
         const weight = unitConfig.weight || 1;
-        let acceleration = totalForce.div(weight);
+        let acceleration = behaviorForce.copy().div(weight); // behaviorForceのみを使用
         
         if (unit.maxForce) {
             acceleration.limit(unit.maxForce);
         }
-
         unit.vel.add(acceleration);
+        unit.vel.limit(unit.temporarySpeedLimit || finalSpeed);
 
-        // 一時的な速度制限（ボスの突進など）やプレイヤーのスロー効果を考慮
-        let speedLimit = unit.temporarySpeedLimit || finalSpeed;
-        if (playerStats.slowField > 0 && p5.Vector.dist(player.pos, unit.pos) < playerStats.slowField) {
-            speedLimit *= (1.0 - playerStats.slowFieldFactor);
-        }
-        unit.vel.limit(speedLimit);
-
-        // --- 衝突と滑りのロジック ---
+        // --- 移動と地形との衝突判定 ---
         const unitRadius = unit.size / 2;
         const newPos = p5.Vector.add(unit.pos, unit.vel);
         
+        let collidedWithTerrain = false; // ★ 壁との衝突フラグ
         const collision = getTerrainCollision(newPos, unitRadius);
         if (collision && (collision.shape.type === 1 || (collision.shape.type === 2 && !unitConfig.fly))) {
             const normal = getCollisionNormal(newPos, collision);
@@ -1294,6 +1290,7 @@ function updateUnits() {
             
             unit.pos.add(slideVel);
             unit.vel = slideVel; 
+            collidedWithTerrain = true;
         } else {
             unit.pos.add(unit.vel);
         }
@@ -1302,10 +1299,20 @@ function updateUnits() {
         if (finalCollision) {
             const finalNormal = getCollisionNormal(unit.pos, finalCollision);
             unit.pos.add(finalNormal.mult(1.0));
+            collidedWithTerrain = true;
         }
+        
+        // ★★★ 修正点2: isAgainstWall フラグを設定 ★★★
+        unit.isAgainstWall = collidedWithTerrain;
+    }
 
-        // ★★★ 古い向き更新ロジックを削除 ★★★
-        // (新しいロジックが分離フォース適用前に移動したため、ここは不要)
+    // --- ステップ2: 全ユニットの重なりを解消 ---
+    resolveUnitOverlaps();
+
+    // --- ステップ3: 最終的な位置に基づき、グリッドとアニメーションを更新 ---
+    for (let i = units.length - 1; i >= 0; i--) {
+        let unit = units[i];
+        if (!unit || unitsToRemove.has(i) || unit.isDying || unit.isAppearing) continue;
 
         const mapSize = getStageConfig(currentStage).mapSize;
         unit.pos.x = constrain(unit.pos.x, 0, mapSize.width);
@@ -1315,6 +1322,7 @@ function updateUnits() {
         updateAnimation(unit, frameCounts[`unit_${unit.type}`] || 1);
     }
 }
+
 
 function drawUnits() {
     const { cameraX, cameraY } = getCameraPosition();
@@ -1666,12 +1674,7 @@ function handleUnitDeath(unit, index, lastAttackerSpecies = null) {
         });
     }
 
-    // ★★★ ここからが修正箇所です ★★★
-    // 重複していた古いロジックを削除し、正しい条件分岐のみを残します。
-    
-    // 毒沼化の処理
-    // プレイヤーがスキルを所持しており、かつ、最後に攻撃したのがプレイヤー自身である場合のみ発動
-    if (playerStats.poisonSwampRadius > 0 && lastAttackerSpecies === 'player' && random() < 0.5) {
+    if (playerStats.poisonSwampRadius > 0 && PLAYER_SOURCED_ATTACKS.includes(lastAttackerSpecies) && random() < 0.5) {
         let canCreateSwamp = true;
         for (const swamp of poisonSwamps) {
             if (p5.Vector.dist(unit.pos, swamp.pos) < swamp.radius) {
@@ -1688,9 +1691,12 @@ function handleUnitDeath(unit, index, lastAttackerSpecies = null) {
         }
     }
     
-    // 連鎖爆裂の処理
-    // プレイヤーがスキルを所持しており、かつ、最後に攻撃したのがプレイヤー自身である場合のみ発動
-    if (playerStats.chainExplosionEnabled && playerStats.chainExplosionRadius > 0 && lastAttackerSpecies === 'player' && unit.affiliation !== 'ally') {
+    // ★★★ 修正箇所: lastAttackerSpecies がプレイヤー由来攻撃リストに含まれるかチェック ★★★
+    if (playerStats.chainExplosionEnabled && 
+        playerStats.chainExplosionRadius > 0 && 
+        PLAYER_SOURCED_ATTACKS.includes(lastAttackerSpecies) && 
+        unit.affiliation !== 'ally') {
+        
         activeExplosions.push({
             center: unit.pos.copy(),
             radius: playerStats.chainExplosionRadius,
