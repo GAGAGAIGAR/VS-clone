@@ -1809,6 +1809,8 @@ function spawnProjectile(props) {
     p.decelerates = props.decelerates || false;
     p.initialSpeed = props.initialSpeed || p.vel.mag();
 
+        // その他の任意プロパティをコピー
+    Object.assign(p, props);
     // 射程や生成時間の管理に必要なプロパティも毎回リセット
     p.origin = props.pos.copy();
     p.createdTime = millis();

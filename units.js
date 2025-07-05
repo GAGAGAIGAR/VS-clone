@@ -1102,7 +1102,7 @@ function shakeAndCharge(unit, finalSpeed) {
             const SHOOT_COUNT = 8;
             const SHOOT_INTERVAL = 80;
             if (unit.burstCount < SHOOT_COUNT && millis() - unit.stateTimer > unit.burstCount * SHOOT_INTERVAL) {
-                const target = findClosestTarget(unit);
+                const target = findClosestTarget(unit, 'ally');
                 const baseAngle = target
                     ? atan2(target.pos.y - unit.pos.y, target.pos.x - unit.pos.x)
                     : random(TWO_PI);
@@ -1111,6 +1111,7 @@ function shakeAndCharge(unit, finalSpeed) {
                 if (target && !unitTypes[unit.type]?.vectorUnder) {
                     unit.facingDirection = cos(baseAngle) >= 0 ? 1 : -1;
                 }
+
                 const spread = radians(20);
                 const finalAngle = baseAngle + random(-spread / 2, spread / 2);
                 shootBullet(unit, finalAngle, 'bossDecelerating');
@@ -1140,7 +1141,7 @@ function behaviorY(unit, finalSpeed) {
         unit.attackState = 'patternA';
     }
 
-    switch (unit.attackState) {
+        switch (unit.attackState) {
         case 'patternA': {
             const target = player;
             if (millis() - (unit.lastShot || 0) > 2000) {
@@ -1159,7 +1160,7 @@ function behaviorY(unit, finalSpeed) {
             return createVector(0, 0);
         }
         case 'movingB': {
-            const steer = moveDirectlyToTarget(unit, { pos: unit.jumpTarget }, 4.0, finalSpeed);
+            const steer = moveDirectlyToTarget(unit, { pos: unit.jumpTarget }, 2.0, finalSpeed);
             if (p5.Vector.dist(unit.pos, unit.jumpTarget) < 10) {
                 unit.attackState = 'summon';
                 unit.stateTimer = millis();
@@ -1284,6 +1285,10 @@ function resolveUnitOverlaps() {
                     // 壁に面しているかどうかで押し出し方を変更
                     const a_is_blocked = unitA.isAgainstWall || false;
                     const b_is_blocked = unitB.isAgainstWall || false;
+                    
+                    const weightA = unitTypes[unitA.type]?.weight || 1;
+                    const weightB = unitTypes[unitB.type]?.weight || 1;
+
 
                     if (a_is_blocked && b_is_blocked) {
                         // 両方ブロックされている場合は何もしない
@@ -1296,9 +1301,11 @@ function resolveUnitOverlaps() {
                     unitA.pos.add(pushDirection.copy().mult(overlap));
                     } else {
                         // どちらもブロックされていないので、半分ずつ押し出す
-                        const halfOverlap = overlap / 2;
-                        unitA.pos.add(pushDirection.copy().mult(halfOverlap));
-                        unitB.pos.sub(pushDirection.copy().mult(halfOverlap));
+                        const totalWeight = weightA + weightB;
+                        const moveA = overlap * (weightB / totalWeight);
+                        const moveB = overlap * (weightA / totalWeight);
+                        unitA.pos.add(pushDirection.copy().mult(moveA));
+                        unitB.pos.sub(pushDirection.copy().mult(moveB));
                     }
                 }
             }

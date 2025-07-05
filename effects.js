@@ -810,9 +810,7 @@ function drawUnitBullets() {
         let angle = atan2(p.vel.y, p.vel.x) - PI / 2;
         rotate(angle);
 
-        if (p.color) { // 弾にcolorプロパティがあれば
-    fill(p.color); // その色を使用する
-        }else if (p.sourceUnitType === 'D' && p.shape === 'spindle') {
+        if (p.sourceUnitType === 'D' && p.shape === 'spindle') {
             fill(0, 255, 255);
             noStroke();
             beginShape();
